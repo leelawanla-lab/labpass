@@ -1,4 +1,4 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LabPass · CEG23167</title><link rel="icon" href="icon.png"><link rel="apple-touch-icon" href="icon.png"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script>window.LABPASS_CONFIG={"url": "https://lnkywpjkrdjcyoppgncv.supabase.co", "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxua3l3cGprcmRqY3lvcHBnbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NDE3NDgsImV4cCI6MjEwNzUxNzc0OH0.lpzgHqjCuww2mQBB6qNg8sn_wyh40mTVoKIT0v6RmBM", "allowedDomains": [], "aiEndpoint": ""};</script><script>/* LabPass web edition: replaces the claude.ai Artifact runtime with Supabase */
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LabPass · CEG23167</title><link rel="icon" href="icon.png"><link rel="apple-touch-icon" href="icon.png"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script>window.LABPASS_CONFIG={"url": "https://lnkywpjkrdjcyoppgncv.supabase.co", "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxua3l3cGprcmRqY3lvcHBnbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NDE3NDgsImV4cCI6MjEwNzUxNzc0OH0.lpzgHqjCuww2mQBB6qNg8sn_wyh40mTVoKIT0v6RmBM", "allowedDomains": ["spumail.net", "spu.ac.th"], "aiEndpoint": ""};</script><script>/* LabPass web edition: replaces the claude.ai Artifact runtime with Supabase */
 (function(){
 const CFG=window.LABPASS_CONFIG||{};
 const sb=window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -49,9 +49,9 @@ window.claude={use:async(n)=>n==="db"?db:n==="user"?user:n==="downloads"?downloa
 /* ---------- login screen ---------- */
 function loginHTML(msg){return`<section class="sheet" style="max-width:520px;margin:40px auto">
  <div class="tab">เข้าสู่ระบบ LabPass</div>
- <h2 style="margin:6px 0 4px">ใช้อีเมลมหาวิทยาลัย</h2>
+ <h2 style="margin:6px 0 4px">ใช้อีเมลมหาวิทยาลัย</h2><p class="small" style="margin:0 0 6px"><b>นักศึกษา</b> @spumail.net · <b>อาจารย์</b> @spu.ac.th</p>
  <p class="small muted">ครั้งแรกให้กด <b>สมัครครั้งแรก</b> ตั้งรหัสผ่านอย่างน้อย 6 ตัว ครั้งต่อไปกด <b>เข้าสู่ระบบ</b> ด้วยอีเมลและรหัสผ่านเดิม</p>
- <div class="q"><label class="ql" for="lpe">อีเมลมหาวิทยาลัย</label><input id="lpe" type="email" autocomplete="email" placeholder="เช่น 66xxxxxx@...ac.th"></div>
+ <div class="q"><label class="ql" for="lpe">อีเมลมหาวิทยาลัย</label><input id="lpe" type="email" autocomplete="email" placeholder="เช่น 66xxxxxx@spumail.net"></div>
  <div class="q"><label class="ql" for="lpp">รหัสผ่าน</label><input id="lpp" type="password" autocomplete="current-password" placeholder="อย่างน้อย 6 ตัว"></div>
  <p id="lpm" class="small" style="color:#B42318;min-height:1.2em">${msg||""}</p>
  <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="lpin">เข้าสู่ระบบ</button><button id="lpup" class="ghost">สมัครครั้งแรก</button></div>
@@ -60,11 +60,11 @@ function okDomain(e){const d=(CFG.allowedDomains||[]);return !d.length||d.some(x
 function showLogin(msg){const app=document.getElementById("app");app.innerHTML=loginHTML(msg);
  const go=async(kind)=>{const email=document.getElementById("lpe").value.trim().toLowerCase(),pw=document.getElementById("lpp").value;const m=document.getElementById("lpm");
   if(!/^\S+@\S+\.\S+$/.test(email)){m.textContent="ใส่อีเมลให้ถูกต้อง";return}
-  if(!okDomain(email)){m.textContent="ต้องใช้อีเมลของมหาวิทยาลัยเท่านั้น";return}
+  if(!okDomain(email)){m.textContent="ใช้ได้เฉพาะอีเมลมหาวิทยาลัย @spumail.net (นักศึกษา) หรือ @spu.ac.th (อาจารย์)";return}
   if(pw.length<6){m.textContent="รหัสผ่านอย่างน้อย 6 ตัว";return}
   m.style.color="#3B4660";m.textContent="กำลังดำเนินการ…";
   const r=kind==="up"?await sb.auth.signUp({email,password:pw}):await sb.auth.signInWithPassword({email,password:pw});
-  if(r.error){m.style.color="#B42318";m.textContent=/registered|exists/i.test(r.error.message)?"อีเมลนี้สมัครแล้ว กด เข้าสู่ระบบ แทน":/invalid/i.test(r.error.message)?"อีเมลหรือรหัสผ่านไม่ถูกต้อง":r.error.message;return}
+  if(r.error){m.style.color="#B42318";m.textContent=/registered|exists/i.test(r.error.message)?"อีเมลนี้สมัครแล้ว กด เข้าสู่ระบบ แทน":/invalid/i.test(r.error.message)?"อีเมลหรือรหัสผ่านไม่ถูกต้อง":/database error|saving new user/i.test(r.error.message)?"ใช้ได้เฉพาะอีเมลมหาวิทยาลัย @spumail.net หรือ @spu.ac.th":r.error.message;return}
   if(!r.data.session){m.style.color="#B42318";m.textContent="สมัครแล้ว แต่ระบบยังต้องยืนยันอีเมล แจ้งอาจารย์";return}
   location.reload()};
  document.getElementById("lpin").onclick=()=>go("in");document.getElementById("lpup").onclick=()=>go("up");
