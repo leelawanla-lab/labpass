@@ -103,7 +103,7 @@ function showLogin(msg){const app=document.getElementById("app");app.innerHTML=l
  document.getElementById("lpp").onkeydown=e=>{if(e.key==="Enter")go("in")}}
 
 /* ---------- manual / docs panel ---------- */
-const DOCS=[["คำชี้แจง LabPass · CEG23167","01-briefing.pdf"],["คู่มือเข้าใช้ LabPass ทีละขั้น (สไลด์)","02-onboarding.pdf"],["คู่มือนักศึกษา (เอกสาร)","03-student-manual.pdf"],["M0 · แบบทดสอบก่อนเรียน","M0.pdf"],["M1 · ออกแบบคอนกรีตของฉัน","M1.pdf"],["M2 · วางแผนผสมจริงในห้องแล็บ","M2.pdf"],["M3 · อ่านใจเข็มไวแคท","M3.pdf"],["M4 · มอร์ตาร์ผ่านเกณฑ์ไหม","M4.pdf"],["M5 · นักสืบคอนกรีตแข็งตัว","M5.pdf"],["M6 · แบบทดสอบหลังเรียน","M6.pdf"]];
+const DOCS=[["คำชี้แจง LabPass · CEG23167","01-briefing.pdf"],["คู่มือเข้าใช้ LabPass ทีละขั้น (สไลด์)","02-onboarding.pdf"],["M0 · แบบทดสอบก่อนเรียน","M0.pdf"],["M1 · ออกแบบคอนกรีตของฉัน","M1.pdf"],["M2 · วางแผนผสมจริงในห้องแล็บ","M2.pdf"],["M3 · อ่านใจเข็มไวแคท","M3.pdf"],["M4 · มอร์ตาร์ผ่านเกณฑ์ไหม","M4.pdf"],["M5 · นักสืบคอนกรีตแข็งตัว","M5.pdf"],["M6 · แบบทดสอบหลังเรียน","M6.pdf"]];
 window.LP_docs=function(){let o=document.getElementById("lpdocs");if(o){o.remove();return}
  o=document.createElement("div");o.id="lpdocs";o.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(11,20,51,.55);display:flex;align-items:center;justify-content:center;padding:16px";
  const list=(CFG.docs||DOCS).map(([t,f])=>`<a href="docs/${encodeURIComponent(f)}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #DDE3EE;border-radius:12px;text-decoration:none;color:#13224A;font-weight:600"><span>${t}</span><span style="color:#3D64E8">เปิด PDF ›</span></a>`).join("");
