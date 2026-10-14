@@ -11,31 +11,57 @@ const collListeners=new Map();  // coll -> Set(cb)
 function snapDoc(path,row){const id=path.split("/").pop();return{id,exists:!!row,data:()=>row?JSON.parse(JSON.stringify(row.data)):undefined}}
 async function readDoc(path){const{data,error}=await sb.from("docs").select("data").eq("path",path).maybeSingle();if(error)throw error;return data}
 async function readColl(c){const{data,error}=await sb.from("docs").select("id,data").eq("coll",c);if(error)throw error;return data||[]}
-async function fireDoc(path){const ls=docListeners.get(path);if(!ls||!ls.size)return;try{const r=await readDoc(path);const s=snapDoc(path,r);ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}catch(e){console.warn(e)}}
-/* collection cache: a change re-reads only the changed row, not the whole class (saves Supabase egress) */
-const collCache=new Map();
-function emitColl(c){const ls=collListeners.get(c),m=collCache.get(c);if(!ls||!ls.size||!m)return;const s={docs:[...m].map(([id,d])=>({id,exists:true,data:()=>JSON.parse(JSON.stringify(d))}))};ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}
+/* Local cache + realtime payloads: after the first load, changes arrive with their data, so the app
+   re-reads almost nothing from Supabase (keeps a 300-400 student course inside the free 5 GB/month). */
+const docCache=new Map();   // path -> data | null
+const collCache=new Map();  // coll -> Map(id -> data)
+const cp=o=>o==null?o:JSON.parse(JSON.stringify(o));
+function deepMerge(a,b){if(a&&b&&typeof a==="object"&&typeof b==="object"&&!Array.isArray(a)&&!Array.isArray(b)){const o={...a};for(const k of Object.keys(b))o[k]=k in a?deepMerge(a[k],b[k]):b[k];return o}return b}
+function emitDoc(path){const ls=docListeners.get(path);if(!ls||!ls.size||!docCache.has(path))return;const d=docCache.get(path);const s=snapDoc(path,d==null?null:{data:d});ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}
+function emitColl(c){const ls=collListeners.get(c),m=collCache.get(c);if(!ls||!ls.size||!m)return;const s={docs:[...m].map(([id,d])=>({id,exists:true,data:()=>cp(d)}))};ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}
+function applyRow(path,data){const[c,id]=path.split("/");if(docListeners.has(path)||docCache.has(path)){docCache.set(path,data);emitDoc(path)}const m=collCache.get(c);if(m){if(data==null)m.delete(id);else m.set(id,data);emitColl(c)}}
+async function fireDoc(path){try{const r=await readDoc(path);applyRow(path,r?r.data:null)}catch(e){console.warn(e)}}
 async function fireColl(c){const ls=collListeners.get(c);if(!ls||!ls.size)return;try{const rows=await readColl(c);collCache.set(c,new Map(rows.map(r=>[r.id,r.data])));emitColl(c)}catch(e){console.warn(e)}}
-async function patchColl(path){const[c,id]=path.split("/");const ls=collListeners.get(c);if(!ls||!ls.size)return;if(!collCache.has(c))return fireColl(c);try{const r=await readDoc(path);const m=collCache.get(c);if(r)m.set(id,r.data);else m.delete(id);emitColl(c)}catch(e){console.warn(e)}}
-function changed(path){fireDoc(path);patchColl(path)}
-const pend=new Map();function schedule(path){clearTimeout(pend.get(path));pend.set(path,setTimeout(()=>changed(path),250))}
+function cached(path){const[c,id]=path.split("/");if(docCache.has(path))return{ok:true,d:docCache.get(path)};const m=collCache.get(c);if(m)return{ok:true,d:m.has(id)?m.get(id):null};return{ok:false}}
+const lastBeat=new Map();const pend=new Map();function schedule(path){clearTimeout(pend.get(path));pend.set(path,setTimeout(()=>fireDoc(path),300))}
 function clean(o){return JSON.parse(JSON.stringify(o===undefined?null:o))}
 const db={
  doc(path){return{id:path.split("/").pop(),path,
   async get(){return snapDoc(path,await readDoc(path))},
-  async set(d){const{error}=await sb.from("docs").upsert({path,coll:path.split("/")[0],id:path.split("/")[1],data:clean(d)});if(error)throw error;changed(path)},
-  async update(d){const{error}=await sb.rpc("doc_merge",{p:path,patch:clean(d)});if(error)throw error;changed(path)},
-  async delete(){const{error}=await sb.from("docs").delete().eq("path",path);if(error)throw error;changed(path)},
+  async set(d){const v=clean(d);const{error}=await sb.from("docs").upsert({path,coll:path.split("/")[0],id:path.split("/")[1],data:v});if(error)throw error;applyRow(path,v)},
+  async update(d){const v=clean(d);
+   if(v&&typeof v==="object"&&Object.keys(v).length===1&&v.progress){const k=path,pr=v.progress,last=lastBeat.get(k),now=Date.now();
+    if(last&&last.mid===pr.mid&&last.part===pr.part&&now-last.t<240000){const c=cached(path);if(c.ok&&c.d!=null)applyRow(path,deepMerge(c.d,v));return}
+    lastBeat.set(k,{mid:pr.mid,part:pr.part,t:now})}
+const{error}=await sb.rpc("doc_merge",{p:path,patch:v});if(error)throw error;const c=cached(path);if(c.ok&&c.d!=null)applyRow(path,deepMerge(c.d,v));else fireDoc(path)},
+  async delete(){const{error}=await sb.from("docs").delete().eq("path",path);if(error)throw error;applyRow(path,null)},
   onSnapshot(cb,err){if(!docListeners.has(path))docListeners.set(path,new Set());docListeners.get(path).add(cb);
-   readDoc(path).then(r=>cb(snapDoc(path,r))).catch(e=>err&&err(e));return()=>docListeners.get(path).delete(cb)}}},
+   if(docCache.has(path)){const d=docCache.get(path);setTimeout(()=>cb(snapDoc(path,d==null?null:{data:d})),0)}
+   else readDoc(path).then(r=>{docCache.set(path,r?r.data:null);cb(snapDoc(path,r))}).catch(e=>err&&err(e));
+   return()=>docListeners.get(path).delete(cb)}}},
  collection(c){return{onSnapshot(cb,err){if(!collListeners.has(c))collListeners.set(c,new Set());collListeners.get(c).add(cb);
-   readColl(c).then(rows=>{collCache.set(c,new Map(rows.map(r=>[r.id,r.data])));cb({docs:rows.map(r=>({id:r.id,exists:true,data:()=>JSON.parse(JSON.stringify(r.data))}))})}).catch(e=>err&&err(e));return()=>collListeners.get(c).delete(cb)},
+   readColl(c).then(rows=>{collCache.set(c,new Map(rows.map(r=>[r.id,r.data])));cb({docs:rows.map(r=>({id:r.id,exists:true,data:()=>cp(r.data)}))})}).catch(e=>err&&err(e));return()=>collListeners.get(c).delete(cb)},
    async get(){const rows=await readColl(c);return{docs:rows.map(r=>({id:r.id,exists:true,data:()=>r.data}))}}}}
 };
+let rtOK=false,chan=null;
+function refreshAll(withColl){docListeners.forEach((ls,p)=>{if(ls.size)fireDoc(p)});if(withColl)collListeners.forEach((_,c)=>fireColl(c))}
+function rtOn(){if(chan)return;chan=sb.channel("docs-live").on("postgres_changes",{event:"*",schema:"public",table:"docs"},p=>{
+   if(p.eventType==="DELETE"){const path=p.old&&p.old.path;if(path)applyRow(path,null);return}
+   const n=p.new||{};if(!n.path)return;
+   if(n.data&&typeof n.data==="object")applyRow(n.path,n.data);else schedule(n.path)
+ }).subscribe(st=>{const was=rtOK;rtOK=st==="SUBSCRIBED";if(rtOK&&!was)refreshAll(true)})}
+function rtOff(){if(!chan)return;sb.removeChannel(chan);chan=null;rtOK=false}
 function startRealtime(){
- sb.channel("docs-live").on("postgres_changes",{event:"*",schema:"public",table:"docs"},p=>{const path=(p.new&&p.new.path)||(p.old&&p.old.path);if(path)schedule(path)}).subscribe();
- setInterval(()=>docListeners.forEach((_,p)=>fireDoc(p)),60000);
- setInterval(()=>collListeners.forEach((_,c)=>fireColl(c)),isTeacherFlag?180000:300000);
+ // Students write their own data and see it immediately (local cache), so only the teacher view listens live.
+ if(isTeacherFlag){
+  rtOn();
+  setInterval(()=>{if(document.visibilityState==="visible"&&!rtOK)refreshAll(false)},60000);
+  setInterval(()=>{if(document.visibilityState==="visible")refreshAll(true)},600000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")rtOn();else rtOff()});
+ }else{
+  setInterval(()=>{if(document.visibilityState==="visible")refreshAll(false)},600000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refreshAll(false)});
+ }
 }
 
 /* ---------- user / downloads / sample ---------- */
