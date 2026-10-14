@@ -78,29 +78,80 @@ async function toB64(b){return new Promise(res=>{const fr=new FileReader();fr.on
 window.claude={use:async(n)=>n==="db"?db:n==="user"?user:n==="downloads"?downloads:n==="sample"?sampleFn:null};
 
 /* ---------- login screen ---------- */
-function loginHTML(msg){return`<section class="sheet" style="max-width:520px;margin:40px auto">
- <div class="tab">เข้าสู่ระบบ LabPass</div>
- <h2 style="margin:6px 0 4px">ใช้อีเมลมหาวิทยาลัย</h2><p class="small" style="margin:0 0 6px"><b>นักศึกษา</b> @spumail.net · <b>อาจารย์</b> @spu.ac.th</p>
- <p class="small muted">ครั้งแรกให้กด <b>สมัครครั้งแรก</b> ตั้งรหัสผ่านอย่างน้อย 6 ตัว ครั้งต่อไปกด <b>เข้าสู่ระบบ</b> ด้วยอีเมลและรหัสผ่านเดิม</p>
- <div class="q"><label class="ql" for="lpe">อีเมลมหาวิทยาลัย</label><input id="lpe" type="email" autocomplete="email" placeholder="เช่น ชื่อ.นามสกุล3ตัว@spumail.net"></div>
- <div class="q"><label class="ql" for="lpp">รหัสผ่าน</label><input id="lpp" type="password" autocomplete="current-password" placeholder="อย่างน้อย 6 ตัว"></div>
- <p id="lpm" class="small" style="color:#B42318;min-height:1.2em">${msg||""}</p>
- <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="lpin">เข้าสู่ระบบ</button><button id="lpup" class="ghost">สมัครครั้งแรก</button></div>
- <p class="small muted" style="margin-top:14px">รหัสผ่านตั้งใหม่เองสำหรับ LabPass ไม่ใช่รหัสอีเมล · ลืมรหัสผ่าน แจ้งอาจารย์เพื่อรีเซ็ต</p>
- <p style="margin-top:10px"><a href="#" onclick="LP_docs();return false" style="font-weight:700">📘 คู่มือและสไลด์ชี้แจง</a></p></section>`}
+const LCSS=`
+.lp-wrap{max-width:480px;margin:18px auto 40px;padding:0 4px}
+.lp-card{background:#fff;border-radius:26px;box-shadow:0 24px 60px -24px rgba(19,34,74,.35),0 2px 6px rgba(19,34,74,.06);overflow:hidden;border:1px solid #e3e8f2}
+.lp-hero{background:linear-gradient(135deg,#1a2f6e 0%,#0b1433 100%);color:#f5f7fb;padding:22px 22px 20px;display:flex;gap:14px;align-items:center;position:relative}
+.lp-hero:after{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#62e8ff,#3d64e8 40%,#8a5cff 70%,#d4a62a)}
+.lp-hero img{width:58px;height:58px;border-radius:16px;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.35);flex:none}
+.lp-hero h1{font-size:24px;line-height:1.15;margin:0;color:#fff;letter-spacing:0}
+.lp-hero p{margin:4px 0 0;font-size:14px;color:#bfcbea;line-height:1.4}
+.lp-body{padding:18px 20px 20px}
+.lp-tabs{display:grid;grid-template-columns:1fr 1fr;background:#eef2fa;border-radius:16px;padding:5px;gap:5px;margin-bottom:16px}
+.lp-tabs button{all:unset;cursor:pointer;text-align:center;padding:12px 6px;border-radius:12px;font-weight:800;font-size:16px;color:#4a5568;-webkit-tap-highlight-color:transparent}
+.lp-tabs button.on{background:#fff;color:#13224a;box-shadow:0 4px 12px rgba(19,34,74,.12)}
+.lp-steps{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.lp-steps span{flex:1;min-width:0;white-space:nowrap;text-align:center;font-size:13px;font-weight:700;color:#6b4e07;background:#fff3cf;border-radius:999px;padding:7px 6px}
+.lp-f{margin:0 0 14px}
+.lp-f label{display:block;font-weight:800;font-size:15.5px;color:#13224a;margin:0 0 6px}
+.lp-in{position:relative}
+.lp-in input{box-sizing:border-box;width:100%;height:54px;font-size:17px;padding:0 16px;border:1.6px solid #cfd7e6;border-radius:14px;background:#f8faff;color:#13224a;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit}
+.lp-in input:focus{border-color:#3d64e8;background:#fff;box-shadow:0 0 0 4px rgba(61,100,232,.15)}
+.lp-in.pw input{padding-right:92px}
+.lp-eye{all:unset;cursor:pointer;position:absolute;right:8px;top:8px;height:38px;padding:0 12px;border-radius:10px;background:#eef2fa;color:#3d64e8;font-weight:800;font-size:14px;display:flex;align-items:center;gap:4px}
+.lp-hint{font-size:13.5px;line-height:1.5;color:#5d6872;margin:6px 2px 0}
+.lp-hint b{color:#13224a}
+.lp-ok{color:#1f7a4d!important;font-weight:700}.lp-bad{color:#b42318!important;font-weight:700}
+.lp-go{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;text-align:center;height:56px;line-height:56px;border-radius:16px;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(180deg,#5a83ff,#3d64e8);box-shadow:0 12px 24px -10px rgba(61,100,232,.8)}
+.lp-go.up{background:linear-gradient(180deg,#e9c55c,#c9971c);color:#1b1404;box-shadow:0 12px 24px -10px rgba(201,151,28,.8)}
+.lp-go[disabled]{opacity:.6}
+.lp-msg{min-height:1.3em;font-size:14.5px;line-height:1.5;margin:4px 2px 12px}
+.lp-switch{text-align:center;font-size:14.5px;margin:14px 0 0;color:#4a5568}
+.lp-switch a,.lp-foot a{color:#3d64e8;font-weight:800;text-decoration:none}
+.lp-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13.5px;color:#5d6872;margin-top:16px;padding-top:14px;border-top:1px solid #eef2fa}
+`;
+function loginHTML(mode){const up=mode==="up";return`<div class="lp-wrap"><div class="lp-card">
+ <div class="lp-hero"><img src="icon.png" alt=""><div><h1>LabPass · CEG23167</h1><p>ภารกิจก่อนเข้าแล็บ ปฏิบัติการทดสอบวัสดุ</p></div></div>
+ <div class="lp-body">
+ <div class="lp-tabs" role="tablist"><button type="button" id="lptin" class="${up?"":"on"}" role="tab" aria-selected="${!up}">เข้าสู่ระบบ</button><button type="button" id="lptup" class="${up?"on":""}" role="tab" aria-selected="${up}">สมัครครั้งแรก</button></div>
+ ${up?`<div class="lp-steps"><span>① สมัคร</span><span>② ลงทะเบียน</span><span>③ ทำภารกิจ</span></div>`:""}
+ <div class="lp-f"><label for="lpe">อีเมลมหาวิทยาลัย</label><div class="lp-in"><input id="lpe" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="ชื่อ.นามสกุล3ตัว@spumail.net"></div>
+  <p class="lp-hint" id="lpeh">นักศึกษา <b>@spumail.net</b> · อาจารย์ <b>@spu.ac.th</b></p></div>
+ <div class="lp-f"><label for="lpp">${up?"ตั้งรหัสผ่านใหม่":"รหัสผ่าน"}</label><div class="lp-in pw"><input id="lpp" type="password" autocomplete="${up?"new-password":"current-password"}" placeholder="${up?"อย่างน้อย 6 ตัว":"รหัสผ่านที่ตั้งไว้ตอนสมัคร"}"><button type="button" class="lp-eye" data-eye="lpp">👁 แสดง</button></div>
+  <p class="lp-hint">${up?"ตั้งรหัสผ่านของ LabPass ขึ้นมาใหม่ <b>อย่างน้อย 6 ตัว</b> ไม่ใช่รหัสอีเมลมหาวิทยาลัย แนะนำให้ผสมตัวอักษรกับตัวเลข แล้วจดไว้":"ใช้รหัสผ่านที่ตั้งเองตอนกด สมัครครั้งแรก (ไม่ใช่รหัสอีเมล)"}</p></div>
+ ${up?`<div class="lp-f"><label for="lpp2">พิมพ์รหัสผ่านอีกครั้ง</label><div class="lp-in pw"><input id="lpp2" type="password" autocomplete="new-password" placeholder="พิมพ์ให้ตรงกับช่องบน"><button type="button" class="lp-eye" data-eye="lpp2">👁 แสดง</button></div><p class="lp-hint" id="lpp2h">กด 👁 แสดง เพื่อตรวจว่าพิมพ์ถูก</p></div>`:""}
+ <p id="lpm" class="lp-msg"></p>
+ ${up?`<button type="button" id="lpup" class="lp-go up">สมัครและเริ่มใช้งาน</button><p class="lp-switch">เคยสมัครแล้ว? <a href="#" id="lpsw">เข้าสู่ระบบ</a></p>`
+     :`<button type="button" id="lpin" class="lp-go">เข้าสู่ระบบ</button><p class="lp-switch">เข้าครั้งแรก? <a href="#" id="lpsw">สมัครครั้งแรก</a></p>`}
+ <div class="lp-foot"><span>ลืมรหัสผ่าน แจ้งอาจารย์เพื่อรีเซ็ต</span><a href="#" onclick="LP_docs();return false">📘 คู่มือและสไลด์ชี้แจง</a></div>
+ </div></div></div>`}
 function okDomain(e){const d=(CFG.allowedDomains||[]);return !d.length||d.some(x=>e.toLowerCase().endsWith("@"+x)||e.toLowerCase().endsWith("."+x))}
-function showLogin(msg){const app=document.getElementById("app");app.innerHTML=loginHTML(msg);
- const go=async(kind)=>{const email=document.getElementById("lpe").value.trim().toLowerCase(),pw=document.getElementById("lpp").value;const m=document.getElementById("lpm");
+let loginMode=null;
+function showLogin(mode){if(!document.getElementById("lpcss")){const st=document.createElement("style");st.id="lpcss";st.textContent=LCSS;document.head.appendChild(st)}
+ if(!mode){let seen=null;try{seen=localStorage.getItem("lp_seen")}catch(e){}mode=seen?"in":"up"}
+ loginMode=mode;const app=document.getElementById("app");const keep=document.getElementById("lpe")?.value||"";app.innerHTML=loginHTML(mode);
+ const $i=id=>document.getElementById(id);if(keep)$i("lpe").value=keep;
+ $i("lptin").onclick=()=>showLogin("in");$i("lptup").onclick=()=>showLogin("up");$i("lpsw").onclick=e=>{e.preventDefault();showLogin(mode==="up"?"in":"up")};
+ app.querySelectorAll("[data-eye]").forEach(bt=>bt.onclick=()=>{const inp=$i(bt.dataset.eye);const show=inp.type==="password";inp.type=show?"text":"password";bt.textContent=show?"🙈 ซ่อน":"👁 แสดง";inp.focus()});
+ const eh=$i("lpeh");const chkE=()=>{const v=$i("lpe").value.trim();if(!v){eh.className="lp-hint";eh.innerHTML="นักศึกษา <b>@spumail.net</b> · อาจารย์ <b>@spu.ac.th</b>";return}
+  if(!/^\S+@\S+\.\S+$/.test(v)){eh.className="lp-hint";eh.textContent="พิมพ์อีเมลให้ครบ เช่น ชื่อ.นามสกุล3ตัว@spumail.net";return}
+  eh.className="lp-hint "+(okDomain(v)?"lp-ok":"lp-bad");eh.textContent=okDomain(v)?"✓ อีเมลมหาวิทยาลัย ใช้ได้":"✗ ใช้ได้เฉพาะ @spumail.net หรือ @spu.ac.th"};
+ $i("lpe").addEventListener("input",chkE);chkE();
+ if(mode==="up"){const h2=$i("lpp2h");const c2=()=>{const a=$i("lpp").value,b=$i("lpp2").value;if(!b){h2.className="lp-hint";h2.textContent="กด 👁 แสดง เพื่อตรวจว่าพิมพ์ถูก";return}h2.className="lp-hint "+(a===b?"lp-ok":"lp-bad");h2.textContent=a===b?"✓ รหัสผ่านตรงกัน":"✗ ยังไม่ตรงกับช่องบน"};$i("lpp").addEventListener("input",c2);$i("lpp2").addEventListener("input",c2)}
+ const go=async()=>{const kind=mode;const email=$i("lpe").value.trim().toLowerCase(),pw=$i("lpp").value;const m=$i("lpm");m.style.color="#B42318";
   if(!/^\S+@\S+\.\S+$/.test(email)){m.textContent="ใส่อีเมลให้ถูกต้อง";return}
   if(!okDomain(email)){m.textContent="ใช้ได้เฉพาะอีเมลมหาวิทยาลัย @spumail.net (นักศึกษา) หรือ @spu.ac.th (อาจารย์)";return}
   if(pw.length<6){m.textContent="รหัสผ่านอย่างน้อย 6 ตัว";return}
-  m.style.color="#3B4660";m.textContent="กำลังดำเนินการ…";
+  if(kind==="up"&&pw!==$i("lpp2").value){m.textContent="รหัสผ่านสองช่องยังไม่ตรงกัน กด 👁 แสดง เพื่อตรวจ";return}
+  const btn=$i(kind==="up"?"lpup":"lpin");btn.disabled=true;m.style.color="#3B4660";m.textContent="กำลังดำเนินการ…";
   const r=kind==="up"?await sb.auth.signUp({email,password:pw}):await sb.auth.signInWithPassword({email,password:pw});
-  if(r.error){m.style.color="#B42318";m.textContent=/registered|exists/i.test(r.error.message)?"อีเมลนี้สมัครแล้ว กด เข้าสู่ระบบ แทน":/invalid/i.test(r.error.message)?"อีเมลหรือรหัสผ่านไม่ถูกต้อง":/database error|saving new user/i.test(r.error.message)?"ใช้ได้เฉพาะอีเมลมหาวิทยาลัย @spumail.net หรือ @spu.ac.th":r.error.message;return}
+  btn.disabled=false;
+  if(r.error){m.style.color="#B42318";m.textContent=/registered|exists/i.test(r.error.message)?"อีเมลนี้สมัครแล้ว กดแท็บ เข้าสู่ระบบ แทน":/invalid/i.test(r.error.message)?"อีเมลหรือรหัสผ่านไม่ถูกต้อง ถ้าลืมรหัสผ่าน แจ้งอาจารย์":/database error|saving new user/i.test(r.error.message)?"ใช้ได้เฉพาะอีเมลมหาวิทยาลัย @spumail.net หรือ @spu.ac.th":r.error.message;return}
   if(!r.data.session){m.style.color="#B42318";m.textContent="สมัครแล้ว แต่ระบบยังต้องยืนยันอีเมล แจ้งอาจารย์";return}
+  try{localStorage.setItem("lp_seen","1")}catch(e){}
   location.reload()};
- document.getElementById("lpin").onclick=()=>go("in");document.getElementById("lpup").onclick=()=>go("up");
- document.getElementById("lpp").onkeydown=e=>{if(e.key==="Enter")go("in")}}
+ $i(mode==="up"?"lpup":"lpin").onclick=go;
+ app.querySelectorAll(".lp-in input").forEach(inp=>inp.onkeydown=e=>{if(e.key==="Enter")go()})}
 
 /* ---------- manual / docs panel ---------- */
 const DOCS=[["คำชี้แจง LabPass · CEG23167","01-briefing.pdf"],["คู่มือเข้าใช้ LabPass ทีละขั้น (สไลด์)","02-onboarding.pdf"],["M0 · แบบทดสอบก่อนเรียน","M0.pdf"],["M1 · ออกแบบคอนกรีตของฉัน","M1.pdf"],["M2 · วางแผนผสมจริงในห้องแล็บ","M2.pdf"],["M3 · อ่านใจเข็มไวแคท","M3.pdf"],["M4 · มอร์ตาร์ผ่านเกณฑ์ไหม","M4.pdf"],["M5 · นักสืบคอนกรีตแข็งตัว","M5.pdf"],["M6 · แบบทดสอบหลังเรียน","M6.pdf"]];
@@ -110,16 +161,41 @@ window.LP_docs=function(){let o=document.getElementById("lpdocs");if(o){o.remove
  o.innerHTML=`<div style="background:#fff;border-radius:18px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:20px;font-family:inherit"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 style="margin:0;font-size:22px">📘 คู่มือ</h2><button id="lpdx" class="ghost">ปิด</button></div><p class="small muted" style="margin:0 0 12px">เปิดอ่านหรือดาวน์โหลดได้ทุกเมื่อ</p><div style="display:flex;flex-direction:column;gap:8px">${list}</div></div>`;
  document.body.appendChild(o);o.onclick=e=>{if(e.target===o)o.remove()};document.getElementById("lpdx").onclick=()=>o.remove()};
 
-/* web edition: 8-item dock fits small phones */
-(function(){const st=document.createElement("style");st.textContent="@media (max-width:480px){html body .dock{gap:3px!important;padding:5px!important}html body .dock .dk{min-width:0!important;flex:1 1 0!important;padding:6px 1px!important;gap:1px!important}html body .dock .dk span{white-space:normal!important;font-size:9.5px!important;line-height:1.15;text-align:center;word-break:keep-all}html body .dock .dk svg{width:18px;height:18px}}";document.head.appendChild(st)})();
+/* web edition: phone / tablet polish (iOS + Android) */
+(function(){const st=document.createElement("style");st.textContent=`
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (max-width:480px){html body .dock{gap:3px!important;padding:5px!important}html body .dock .dk{min-width:0!important;flex:1 1 0!important;padding:6px 1px!important;gap:1px!important}html body .dock .dk span{white-space:normal!important;font-size:9.5px!important;line-height:1.15;text-align:center;word-break:keep-all}html body .dock .dk svg{width:18px;height:18px}}
+@media (max-width:560px){
+ html body main{padding-inline:8px!important;gap:12px!important}
+ html body .sheet{padding:16px 14px!important}
+ html body input,html body select,html body textarea{font-size:16px!important}
+ html body .idrow{flex-wrap:nowrap!important;gap:3px!important}
+ html body .idc{flex:1 1 0!important;min-width:0!important}
+ html body .idc b{width:100%!important;max-width:34px!important;font-size:15px!important}
+ html body table{font-size:14px}
+}`;document.head.appendChild(st)})();
+/* keep numbers with their units / labels on one line (non-breaking space) */
+(function(){
+ const R=[[/(ปฏิบัติการที่|แล็บ|ข้อ|ขั้นที่|ขั้น|ตาราง|รูป|ภารกิจ|ชุด|ช่องที่|ก้อนที่|ระดับ|Lv\.|ASTM|เต็ม|จาก|รหัส) (?=[\dA-Z])/g,"$1 "],
+  [/(\d[\d,.]*) (?=(?:ksc|MPa|ซม|มม|กก|ลิตร|นาที|วินาที|ชม|วัน|ข้อ|คน|ครั้ง|ก้อน|ชิ้น|%|°C|ลบ\.ม|กรัม|ตำแหน่ง|หลัก|คะแนน|ภารกิจ|แท่ง|ท่อน|หน่วย|องศา|เท่า))/g,"$1 "],
+  [/(\d) ([±×÷=+−–]) (?=\d)/g,"$1 $2 "]];
+ const SKIP=/^(SCRIPT|STYLE|TEXTAREA|INPUT|OPTION|CODE|PRE)$/;
+ function fix(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{const p=n.parentNode;return p&&!SKIP.test(p.nodeName)&&!(p.isContentEditable)&&/\d/.test(n.nodeValue)?1:2}});let n;while(n=w.nextNode()){let v=n.nodeValue,o=v;for(const[re,rep]of R)v=v.replace(re,rep);if(v!==o)n.nodeValue=v}}
+ let q=new Set(),sch=false;
+ const mo=new MutationObserver(ms=>{for(const m of ms){if(m.type==="characterData")q.add(m.target.parentNode);else m.addedNodes.forEach(x=>q.add(x.nodeType===3?x.parentNode:x))}
+  if(!sch){sch=true;requestAnimationFrame(()=>{sch=false;const L=[...q];q.clear();mo.disconnect();L.forEach(x=>{if(x&&x.isConnected)fix(x)});mo.observe(document.body,{childList:true,subtree:true,characterData:true})})}});
+ const start=()=>{fix(document.body);mo.observe(document.body,{childList:true,subtree:true,characterData:true})};
+ if(document.body)start();else document.addEventListener("DOMContentLoaded",start)})();
 window.LP_signOut=async()=>{await sb.auth.signOut();location.reload()};
 window.LP_start=async function(){
  const{data}=await sb.auth.getSession();session=data.session;
  if(!session){showLogin();return}
  try{const{data:t}=await sb.rpc("is_teacher");isTeacherFlag=!!t}catch(e){isTeacherFlag=false}
  startRealtime();
- const bar=document.createElement("div");bar.style.cssText="position:fixed;right:10px;top:76px;z-index:50;box-shadow:0 4px 12px rgba(19,34,74,.12);font:12px sans-serif;background:#fff;border:1px solid #DDE3EE;border-radius:999px;padding:4px 10px;opacity:.85";
- bar.innerHTML=`<a href="#" onclick="LP_docs();return false" style="font-weight:700">📘 คู่มือ</a> · ${session.user.email} · <a href="#" id="lpout">ออกจากระบบ</a>`;document.body.appendChild(bar);document.getElementById("lpout").onclick=e=>{e.preventDefault();window.LP_signOut()};
+ const bar=document.createElement("div");bar.id="lpbar";bar.style.cssText="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;align-items:center;font:13px/1.4 sans-serif;color:#3b4660;padding:6px 14px;background:rgba(255,255,255,.9);border-bottom:1px solid #e3e8f2;position:relative;z-index:30";
+ bar.innerHTML=`<a href="#" onclick="LP_docs();return false" style="font-weight:700;color:#3d64e8;text-decoration:none">📘 คู่มือ</a><span style="overflow-wrap:anywhere">${session.user.email}</span><a href="#" id="lpout" style="color:#b42318;font-weight:700;text-decoration:none">ออกจากระบบ</a>`;document.body.insertBefore(bar,document.body.firstChild);
+ try{localStorage.setItem("lp_seen","1")}catch(e){}
+ document.getElementById("lpout").onclick=e=>{e.preventDefault();window.LP_signOut()};
  window.boot();
 };
 })();
@@ -855,7 +931,7 @@ td.lv{font-size:12.5px;white-space:nowrap}td.lv small{display:block;color:#5d687
   <div class="who" id="who"></div>
 </div></div>
 <main id="app">
-  <section class="sheet"><h2>กำลังเปิดระบบ…</h2><p class="muted">ถ้าหน้านี้ค้างนานเกิน 15 วินาที ให้ตรวจว่าเข้าสู่ระบบ claude.ai แล้ว และได้รับสิทธิ์เข้าหน้านี้จากอาจารย์</p></section>
+  <section class="sheet"><h2>กำลังเปิดระบบ…</h2><p class="muted">ถ้าหน้านี้ค้างนานเกิน 15 วินาที ให้รีเฟรชหน้า หรือออกจากระบบแล้วเข้าใหม่ ถ้ายังไม่ได้ แจ้งอาจารย์</p></section>
 </main>
 <div id="toast" class="toast" hidden></div>
 
@@ -979,7 +1055,7 @@ function kwGrade(mid,answers){return C[mid].map((c,i)=>{const t=(answers[i]||"")
 
 /* Pre/post test (three-tier). k = answer index, rk = reason index (reasons stored in authored order; display is rotated per item) */
 const T=[
- {q:"(แล็บ 11) ถ้าลด w/c จาก 0.60 เป็น 0.50 โดยใช้น้ำเท่าเดิม กำลังอัดจะ",o:["เพิ่มขึ้","ลดลง","เท่าเดิม"],k:0,r:["ใช้ซีเมนต์มากขึ้น ช่องว่างในซีเมนต์เพสต์จึงลดลง","น้ำน้อยลง คอนกรีตจึงแห้งเร็วและแข็งแรง","กำลังอัดขึ้นกับหินเป็นหลัก","w/c มีผลต่อค่ายุบตัวเท่านั้น"],rk:0},
+ {q:"(แล็บ 11) ถ้าลด w/c จาก 0.60 เป็น 0.50 โดยใช้น้ำเท่าเดิม กำลังอัดจะ",o:["เพิ่มขึ้น","ลดลง","เท่าเดิม"],k:0,r:["ใช้ซีเมนต์มากขึ้น ช่องว่างในซีเมนต์เพสต์จึงลดลง","น้ำน้อยลง คอนกรีตจึงแห้งเร็วและแข็งแรง","กำลังอัดขึ้นกับหินเป็นหลัก","w/c มีผลต่อค่ายุบตัวเท่านั้น"],rk:0},
  {q:"(แล็บ 13) คอนกรีตที่มีค่ายุบตัวสูงกว่าจะมีกำลังอัดสูงกว่าเสมอหรือไม่",o:["ใช่","ไม่จำเป็น","ต่ำกว่าเสมอ"],k:1,r:["ค่ายุบตัววัดความข้นเหลว ไม่ได้วัดกำลัง ผลต่อกำลังขึ้นกับว่าเหลวขึ้นเพราะเติมน้ำหรือใช้น้ำยา","คอนกรีตเหลวอัดแน่นได้ดีกว่าจึงแข็งแรงกว่า","น้ำมากทำให้ปฏิกิริยาไฮเดรชันสมบูรณ์กว่า","ค่ายุบตัวกับกำลังอัดเป็นค่าเดียวกันในหน่วยต่างกัน"],rk:0},
  {q:"(แล็บ 12) ทรายมีความชื้น 4 % แต่การดูดซึม 0.7 % ถ้าไม่ปรับน้ำผสม w/c จริงจะ",o:["สูงกว่าที่ออกแบบ","ต่ำกว่าที่ออกแบบ","เท่าเดิม"],k:0,r:["น้ำอิสระที่ผิวทรายไปเพิ่มในน้ำผสม","ทรายแห้งจะดูดน้ำจากซีเมนต์เพสต์","ความชื้นในทรายระเหยหมดระหว่างผสม","ความชื้นในทรายไม่เกี่ยวกับ w/c"],rk:0},
  {q:"(แล็บ 14) ผลรวมน้ำหนักวัสดุทั้งหมดในส่วนผสม 1 ลบ.ม. ควรใกล้เคียงกับค่าใด",o:["ประมาณ 1,000 กก.","ประมาณ 2,400 กก.","ประมาณ 3,200 กก."],k:1,r:["คือหน่วยน้ำหนักทางทฤษฎีของคอนกรีตทั่วไป","1 ลบ.ม. หนัก 1,000 กก. เท่ากับน้ำ","คอนกรีตหนักกว่าหินทุกชนิด","ต้องรวมน้ำหนักแบบหล่อด้วย"],rk:0},
@@ -1728,10 +1804,10 @@ const S=(mid,sec)=>{const b=Object.assign({open:mid==="M0"||mid==="M1",reveal:fa
 const fmtDate=d=>d?new Date(d+"T00:00").toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"}):"";
 
 async function boot(){
- if(!window.claude?.use){app.innerHTML=`<section class="sheet"><h2>เปิดหน้านี้ใน claude.ai</h2><p>ระบบนี้ต้องเปิดผ่านลิงก์ที่อาจารย์ส่งให้ และต้องเข้าสู่ระบบ claude.ai ก่อน</p></section>`;return}
+ if(!window.claude?.use){app.innerHTML=`<section class="sheet"><h2>เปิดระบบไม่สำเร็จ</h2><p>ตรวจอินเทอร์เน็ต แล้วรีเฟรชหน้า ถ้ายังไม่ได้ แจ้งอาจารย์</p></section>`;return}
  [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
  uid=user?await user.id():null;
- if(!db||!uid){app.innerHTML=`<section class="sheet"><h2>ยังเข้าใช้ระบบไม่ได้</h2><p>ตรวจว่าเข้าสู่ระบบ claude.ai แล้ว และอาจารย์ให้สิทธิ์ระดับ <b>Contributor</b> กับบัญชีของคุณ ถ้ายังไม่ได้ ให้แจ้งอาจารย์พร้อมอีเมลที่ใช้เข้าสู่ระบบ</p></section>`;return}
+ if(!db||!uid){app.innerHTML=`<section class="sheet"><h2>ยังเข้าใช้ระบบไม่ได้</h2><p>ตรวจว่าเข้าสู่ระบบด้วยอีเมลมหาวิทยาลัย (@spumail.net หรือ @spu.ac.th) ถ้ายังไม่ได้ ให้แจ้งอาจารย์พร้อมอีเมลที่ใช้</p></section>`;return}
  isTeacher=await user.canEdit();
  db.doc("config/settings").onSnapshot(s=>{settings=s.exists?s.data():{missions:{}};render()},()=>{});
  db.doc("config/library").onSnapshot(s=>{library=s.exists?s.data():{items:[]};if(view.name!=="mission")render()},()=>{});
@@ -1809,7 +1885,7 @@ function renderRegister(){
   if(!/^[A-Z]{0,3}\d{1,4}$/.test(sec)){err.textContent="กรอกกลุ่มเรียนให้ถูกรูปแบบ เช่น 001 หรือ A301";err.hidden=false;return}
   $("#rgo").disabled=true;
   try{await db.doc("subs/"+uid).set({sid,title,name,section:sec,avatar:$("#rav").value,consent:$("#rcons").checked,createdAt:new Date().toISOString(),missions:{}});toast("ลงทะเบียนแล้ว")}
-  catch(e){err.textContent=e.code==="invalid_argument"?"บัญชีนี้ยังไม่มีสิทธิ์บันทึกข้อมูล แจ้งอาจารย์ให้เปลี่ยนสิทธิ์เป็น Contributor":"บันทึกไม่สำเร็จ ลองอีกครั้ง";err.hidden=false;$("#rgo").disabled=false}};
+  catch(e){err.textContent=e.code==="invalid_argument"?"บัญชีนี้ยังบันทึกข้อมูลไม่ได้ ออกจากระบบแล้วเข้าใหม่ ถ้ายังไม่ได้ แจ้งอาจารย์":"บันทึกไม่สำเร็จ ลองอีกครั้ง";err.hidden=false;$("#rgo").disabled=false}};
 }
 
 /* ---------- home ---------- */
@@ -2191,7 +2267,7 @@ async function sendChat(){const inp=$("#chin");let t=inp.value.trim();const img=
   while(msgs.length&&msgs[0].role!=="user")msgs.shift();msgs.unshift({role:"user",content:chatSystem(ctx)+"\n\nต่อไปนี้คือบทสนทนา ตอบในบทบาทอาจารย์ต่อจากข้อความล่าสุดของนักศึกษา"},{role:"assistant",content:"รับทราบค่ะ"});
   if(img)msgs.at(-1).content="[นักศึกษาแนบรูปมาพร้อมข้อความนี้]\n"+msgs.at(-1).content;
   chatAbort=new AbortController();const opt={modelTier:"quick",cache:false,signal:chatAbort.signal,onText:({text})=>{const e=document.getElementById("chlive");if(e&&text&&text!=="Thinking..."){e.classList.remove("typing");e.textContent=text;$("#chlog").scrollTop=1e9}}};if(img)opt.images=[img];
-  const r=await sample(msgs,opt);reply=(r?.text||"").trim()}catch(e){reply="";L.push({r:"t",t:e?.code==="rate_limited"?"ตอนนี้มีคนคุยกับอาจารย์เยอะ รอสักครู่แล้วส่งใหม่นะคะ":e?.code==="not_granted"?"ยังเปิดแชทไม่ได้ค่ะ ลองกดอนุญาตให้หน้านี้ใช้ Claude แล้วส่งใหม่อีกครั้งนะคะ":e?.code==="images_unavailable"?"ตอนนี้อาจารย์ยังเปิดดูรูปไม่ได้ค่ะ ลองพิมพ์เล่าแทนได้ไหมคะ":e?.code==="cancelled"?"":"ขอโทษค่ะ สัญญาณไม่ดี ลองส่งใหม่อีกครั้งนะคะ",at:new Date().toISOString(),err:1});chatSent[ctx]--}
+  const r=await sample(msgs,opt);reply=(r?.text||"").trim()}catch(e){reply="";L.push({r:"t",t:e?.code==="rate_limited"?"ตอนนี้มีคนคุยกับอาจารย์เยอะ รอสักครู่แล้วส่งใหม่นะคะ":e?.code==="not_granted"?"ตอนนี้แชทยังไม่เปิดใช้ค่ะ ถามอาจารย์ในคาบได้เลยนะคะ":e?.code==="images_unavailable"?"ตอนนี้อาจารย์ยังเปิดดูรูปไม่ได้ค่ะ ลองพิมพ์เล่าแทนได้ไหมคะ":e?.code==="cancelled"?"":"ขอโทษค่ะ สัญญาณไม่ดี ลองส่งใหม่อีกครั้งนะคะ",at:new Date().toISOString(),err:1});chatSent[ctx]--}
  if(reply){L.push({r:"t",t:reply.slice(0,1500),at:new Date().toISOString()});speak(reply)}chatBusy=false;if(chatCtx===ctx)drawChat();
  if(reply&&!isTeacher&&me&&db&&uid){try{const keep=L.filter(m=>!m.err).slice(-60).map(({img,...m})=>m);const others=Object.entries(me.chat||{}).filter(([k])=>k!==ctx).reduce((a,[,v])=>a+jsonBytes(v),0);while(keep.length>6&&others+jsonBytes(keep)>CHAT_BUDGET)keep.shift();const rest=jsonBytes(Object.assign({},me,{chat:null}));while(keep.length>4&&rest+others+jsonBytes(keep)>DOC_SAFE)keep.shift();await db.doc("subs/"+uid).update({chat:{[ctx]:keep}})}catch(e){console.warn(e)}}}
 const CHAT_BUDGET=110000,DOC_SAFE=220000;function jsonBytes(v){try{return new TextEncoder().encode(JSON.stringify(v??null)).length}catch(e){return 0}}
@@ -2561,7 +2637,7 @@ function renderTeacher(){
   body=`<section class="sheet"><div class="row" style="justify-content:space-between"><div><div class="tab">ภาพรวม</div><h2>นักศึกษาลงทะเบียน ${studs.length} คน</h2></div><button class="ghost" id="csv">ดาวน์โหลด Excel (ข้อมูลวิจัย)</button></div>
    <div class="breakdown">${cols.map((mid,i)=>`<div><span>${mid} ส่งแล้ว</span><b>${sent[i]} / ${studs.length}</b></div>`).join("")}</div>
    <p class="small muted">ทุกส่วนตรวจอัตโนมัติ คลิกคะแนนเพื่อดูคำตอบส่วน C หรือแก้คะแนนถ้าต้องการ · <span class="flagi">⚠</span> = มีสัญญาณตอบไม่ตั้งใจ (ชี้เมาส์เพื่อดู · คลิกเพื่อดูรายละเอียดหรือให้ทำใหม่) · <span class="pill latep">ช้า</span> = ส่งเลยกำหนด · <span class="pill wait">C</span> = ส่วน C ยังตรวจไม่เสร็จ (ระบบตรวจเมื่อนักศึกษาเปิดหน้าผลอีกครั้ง)</p>
-   <div class="tw"><table><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr>${rows.join("")||`<tr><td colspan="${head.length}" class="muted">ยังไม่มีนักศึกษาลงทะเบียน แชร์ลิงก์หน้านี้ให้นักศึกษาเป็น Contributor</td></tr>`}</table></div></section>`;
+   <div class="tw"><table><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr>${rows.join("")||`<tr><td colspan="${head.length}" class="muted">ยังไม่มีนักศึกษาลงทะเบียน แชร์ลิงก์หรือ QR ของเว็บแอปให้นักศึกษา</td></tr>`}</table></div></section>`;
  }
  if(tab==="items"){
   const mid=view.mid||"M1";
