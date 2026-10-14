@@ -51,11 +51,12 @@ function loginHTML(msg){return`<section class="sheet" style="max-width:520px;mar
  <div class="tab">เข้าสู่ระบบ LabPass</div>
  <h2 style="margin:6px 0 4px">ใช้อีเมลมหาวิทยาลัย</h2><p class="small" style="margin:0 0 6px"><b>นักศึกษา</b> @spumail.net · <b>อาจารย์</b> @spu.ac.th</p>
  <p class="small muted">ครั้งแรกให้กด <b>สมัครครั้งแรก</b> ตั้งรหัสผ่านอย่างน้อย 6 ตัว ครั้งต่อไปกด <b>เข้าสู่ระบบ</b> ด้วยอีเมลและรหัสผ่านเดิม</p>
- <div class="q"><label class="ql" for="lpe">อีเมลมหาวิทยาลัย</label><input id="lpe" type="email" autocomplete="email" placeholder="เช่น 66xxxxxx@spumail.net"></div>
+ <div class="q"><label class="ql" for="lpe">อีเมลมหาวิทยาลัย</label><input id="lpe" type="email" autocomplete="email" placeholder="เช่น ชื่อ.นามสกุล3ตัว@spumail.net"></div>
  <div class="q"><label class="ql" for="lpp">รหัสผ่าน</label><input id="lpp" type="password" autocomplete="current-password" placeholder="อย่างน้อย 6 ตัว"></div>
  <p id="lpm" class="small" style="color:#B42318;min-height:1.2em">${msg||""}</p>
  <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="lpin">เข้าสู่ระบบ</button><button id="lpup" class="ghost">สมัครครั้งแรก</button></div>
- <p class="small muted" style="margin-top:14px">ลืมรหัสผ่าน แจ้งอาจารย์เพื่อรีเซ็ต</p></section>`}
+ <p class="small muted" style="margin-top:14px">รหัสผ่านตั้งใหม่เองสำหรับ LabPass ไม่ใช่รหัสอีเมล · ลืมรหัสผ่าน แจ้งอาจารย์เพื่อรีเซ็ต</p>
+ <p style="margin-top:10px"><a href="#" onclick="LP_docs();return false" style="font-weight:700">📘 คู่มือและสไลด์ชี้แจง</a></p></section>`}
 function okDomain(e){const d=(CFG.allowedDomains||[]);return !d.length||d.some(x=>e.toLowerCase().endsWith("@"+x)||e.toLowerCase().endsWith("."+x))}
 function showLogin(msg){const app=document.getElementById("app");app.innerHTML=loginHTML(msg);
  const go=async(kind)=>{const email=document.getElementById("lpe").value.trim().toLowerCase(),pw=document.getElementById("lpp").value;const m=document.getElementById("lpm");
@@ -69,14 +70,25 @@ function showLogin(msg){const app=document.getElementById("app");app.innerHTML=l
   location.reload()};
  document.getElementById("lpin").onclick=()=>go("in");document.getElementById("lpup").onclick=()=>go("up");
  document.getElementById("lpp").onkeydown=e=>{if(e.key==="Enter")go("in")}}
+
+/* ---------- manual / docs panel ---------- */
+const DOCS=[["คำชี้แจง LabPass · CEG23167","01-briefing.pdf"],["คู่มือเข้าใช้ LabPass ทีละขั้น (สไลด์)","02-onboarding.pdf"],["คู่มือนักศึกษา (เอกสาร)","03-student-manual.pdf"],["M0 · แบบทดสอบก่อนเรียน","M0.pdf"],["M1 · ออกแบบคอนกรีตของฉัน","M1.pdf"],["M2 · วางแผนผสมจริงในห้องแล็บ","M2.pdf"],["M3 · อ่านใจเข็มไวแคท","M3.pdf"],["M4 · มอร์ตาร์ผ่านเกณฑ์ไหม","M4.pdf"],["M5 · นักสืบคอนกรีตแข็งตัว","M5.pdf"],["M6 · แบบทดสอบหลังเรียน","M6.pdf"]];
+window.LP_docs=function(){let o=document.getElementById("lpdocs");if(o){o.remove();return}
+ o=document.createElement("div");o.id="lpdocs";o.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(11,20,51,.55);display:flex;align-items:center;justify-content:center;padding:16px";
+ const list=(CFG.docs||DOCS).map(([t,f])=>`<a href="docs/${encodeURIComponent(f)}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #DDE3EE;border-radius:12px;text-decoration:none;color:#13224A;font-weight:600"><span>${t}</span><span style="color:#3D64E8">เปิด PDF ›</span></a>`).join("");
+ o.innerHTML=`<div style="background:#fff;border-radius:18px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:20px;font-family:inherit"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 style="margin:0;font-size:22px">📘 คู่มือ</h2><button id="lpdx" class="ghost">ปิด</button></div><p class="small muted" style="margin:0 0 12px">เปิดอ่านหรือดาวน์โหลดได้ทุกเมื่อ</p><div style="display:flex;flex-direction:column;gap:8px">${list}</div></div>`;
+ document.body.appendChild(o);o.onclick=e=>{if(e.target===o)o.remove()};document.getElementById("lpdx").onclick=()=>o.remove()};
+
+/* web edition: 8-item dock fits small phones */
+(function(){const st=document.createElement("style");st.textContent="@media (max-width:480px){html body .dock{gap:3px!important;padding:5px!important}html body .dock .dk{min-width:0!important;flex:1 1 0!important;padding:6px 1px!important;gap:1px!important}html body .dock .dk span{white-space:normal!important;font-size:9.5px!important;line-height:1.15;text-align:center;word-break:keep-all}html body .dock .dk svg{width:18px;height:18px}}";document.head.appendChild(st)})();
 window.LP_signOut=async()=>{await sb.auth.signOut();location.reload()};
 window.LP_start=async function(){
  const{data}=await sb.auth.getSession();session=data.session;
  if(!session){showLogin();return}
  try{const{data:t}=await sb.rpc("is_teacher");isTeacherFlag=!!t}catch(e){isTeacherFlag=false}
  startRealtime();
- const bar=document.createElement("div");bar.style.cssText="position:fixed;right:10px;bottom:10px;z-index:50;font:12px sans-serif;background:#fff;border:1px solid #DDE3EE;border-radius:999px;padding:4px 10px;opacity:.85";
- bar.innerHTML=`${session.user.email} · <a href="#" id="lpout">ออกจากระบบ</a>`;document.body.appendChild(bar);document.getElementById("lpout").onclick=e=>{e.preventDefault();window.LP_signOut()};
+ const bar=document.createElement("div");bar.style.cssText="position:fixed;right:10px;top:76px;z-index:50;box-shadow:0 4px 12px rgba(19,34,74,.12);font:12px sans-serif;background:#fff;border:1px solid #DDE3EE;border-radius:999px;padding:4px 10px;opacity:.85";
+ bar.innerHTML=`<a href="#" onclick="LP_docs();return false" style="font-weight:700">📘 คู่มือ</a> · ${session.user.email} · <a href="#" id="lpout">ออกจากระบบ</a>`;document.body.appendChild(bar);document.getElementById("lpout").onclick=e=>{e.preventDefault();window.LP_signOut()};
  window.boot();
 };
 })();
@@ -1217,10 +1229,10 @@ function teacherDeep(P,sorted,avg){
 function adviceHTML(P){return`<section class="sheet lux"><div class="tab">จากอาจารย์ถึงคุณ</div><h2>${esc(me.name)} · ${P.n} ภารกิจ · คะแนนรวม ${P.tot.toFixed(1)} จาก ${P.n*10}</h2>
   ${insightHTML(P)}
   <div><h3>แนวทางการเรียนที่แนะนำ</h3><ol style="margin:6px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:6px">${studyPlan(P).map(x=>`<li>${x}</li>`).join("")}</ol></div></section>`}
-const DOCK=[["top","ล็อบบี้","M4 11 L12 4 L20 11 V20 H14 V14 H10 V20 H4 Z"],["dkMis","ภารกิจแล็บ","M5 4 H19 V20 H5 Z M8 9 H16 M8 13 H16 M8 17 H13"],["lib","คลังความรู้","M4 5 C7 4 10 4 12 6 C14 4 17 4 20 5 V19 C17 18 14 18 12 20 C10 18 7 18 4 19 Z M12 6 V20"],["dkPow","สถิติวิศวกร","M12 3 L14.5 9 L21 9.5 L16 13.8 L17.6 20 L12 16.6 L6.4 20 L8 13.8 L3 9.5 L9.5 9 Z"],["cls","ทีมแล็บ","M4 20 V10 M10 20 V5 M16 20 V13 M3 20 H21"],["dress","ล็อกเกอร์","M8 4 L12 6 L16 4 L21 8 L18 11 L17 10 V20 H7 V10 L6 11 L3 8 Z"],["chat","ถามอาจารย์","M4 5 H20 V16 H11 L7 20 V16 H4 Z M8 10 H8.01 M12 10 H12.01 M16 10 H16.01"]];
+const DOCK=[["top","ล็อบบี้","M4 11 L12 4 L20 11 V20 H14 V14 H10 V20 H4 Z"],["dkMis","ภารกิจแล็บ","M5 4 H19 V20 H5 Z M8 9 H16 M8 13 H16 M8 17 H13"],["lib","คลังความรู้","M4 5 C7 4 10 4 12 6 C14 4 17 4 20 5 V19 C17 18 14 18 12 20 C10 18 7 18 4 19 Z M12 6 V20"],["dkPow","สถิติวิศวกร","M12 3 L14.5 9 L21 9.5 L16 13.8 L17.6 20 L12 16.6 L6.4 20 L8 13.8 L3 9.5 L9.5 9 Z"],["cls","ทีมแล็บ","M4 20 V10 M10 20 V5 M16 20 V13 M3 20 H21"],["dress","ล็อกเกอร์","M8 4 L12 6 L16 4 L21 8 L18 11 L17 10 V20 H7 V10 L6 11 L3 8 Z"],["manual","คู่มือ","M6 3 H18 V21 H6 Z M9 7 H15 M9 11 H15 M9 15 H13"],["chat","ถามอาจารย์","M4 5 H20 V16 H11 L7 20 V16 H4 Z M8 10 H8.01 M12 10 H12.01 M16 10 H16.01"]];
 function dockHTML(on){const nNew=(library.items||[]).filter(isNew).length;return`<nav class="dock" aria-label="เมนูลัด">${DOCK.map(([k,l,d])=>`<button class="dk${k===on?" on":""}" data-dk="${k}">${k==="lib"&&nNew&&on!=="lib"?`<i class="dkdot">${nNew}</i>`:""}<svg viewBox="0 0 24 24" width="20" height="20"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg><span>${l}</span></button>`).join("")}</nav>`}
 let homeTab="top";
-function bindDock(){app.querySelectorAll("[data-dk]").forEach(b=>b.onclick=()=>{const k=b.dataset.dk;if(k==="chat")return openChat("gen");
+function bindDock(){app.querySelectorAll("[data-dk]").forEach(b=>b.onclick=()=>{const k=b.dataset.dk;if(k==="manual")return window.LP_docs&&LP_docs();if(k==="chat")return openChat("gen");
  if(k==="cls"){view={name:"class"}}else if(k==="lib"){view={name:"lib"}}else{view={name:"home"};homeTab=k;if(k!=="dress"&&editLook){editLook=null;lookDismissed=true}}
  lastKey="";render();scrollTo(0,0)})}
 function gbars(groups,series,max,unit){/* grouped horizontal bars: groups=[label,[v1,v2,v3]] */
