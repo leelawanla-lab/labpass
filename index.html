@@ -12,8 +12,12 @@ function snapDoc(path,row){const id=path.split("/").pop();return{id,exists:!!row
 async function readDoc(path){const{data,error}=await sb.from("docs").select("data").eq("path",path).maybeSingle();if(error)throw error;return data}
 async function readColl(c){const{data,error}=await sb.from("docs").select("id,data").eq("coll",c);if(error)throw error;return data||[]}
 async function fireDoc(path){const ls=docListeners.get(path);if(!ls||!ls.size)return;try{const r=await readDoc(path);const s=snapDoc(path,r);ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}catch(e){console.warn(e)}}
-async function fireColl(c){const ls=collListeners.get(c);if(!ls||!ls.size)return;try{const rows=await readColl(c);const s={docs:rows.map(r=>({id:r.id,exists:true,data:()=>JSON.parse(JSON.stringify(r.data))}))};ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}catch(e){console.warn(e)}}
-function changed(path){fireDoc(path);fireColl(path.split("/")[0])}
+/* collection cache: a change re-reads only the changed row, not the whole class (saves Supabase egress) */
+const collCache=new Map();
+function emitColl(c){const ls=collListeners.get(c),m=collCache.get(c);if(!ls||!ls.size||!m)return;const s={docs:[...m].map(([id,d])=>({id,exists:true,data:()=>JSON.parse(JSON.stringify(d))}))};ls.forEach(f=>{try{f(s)}catch(e){console.warn(e)}})}
+async function fireColl(c){const ls=collListeners.get(c);if(!ls||!ls.size)return;try{const rows=await readColl(c);collCache.set(c,new Map(rows.map(r=>[r.id,r.data])));emitColl(c)}catch(e){console.warn(e)}}
+async function patchColl(path){const[c,id]=path.split("/");const ls=collListeners.get(c);if(!ls||!ls.size)return;if(!collCache.has(c))return fireColl(c);try{const r=await readDoc(path);const m=collCache.get(c);if(r)m.set(id,r.data);else m.delete(id);emitColl(c)}catch(e){console.warn(e)}}
+function changed(path){fireDoc(path);patchColl(path)}
 const pend=new Map();function schedule(path){clearTimeout(pend.get(path));pend.set(path,setTimeout(()=>changed(path),250))}
 function clean(o){return JSON.parse(JSON.stringify(o===undefined?null:o))}
 const db={
@@ -25,12 +29,13 @@ const db={
   onSnapshot(cb,err){if(!docListeners.has(path))docListeners.set(path,new Set());docListeners.get(path).add(cb);
    readDoc(path).then(r=>cb(snapDoc(path,r))).catch(e=>err&&err(e));return()=>docListeners.get(path).delete(cb)}}},
  collection(c){return{onSnapshot(cb,err){if(!collListeners.has(c))collListeners.set(c,new Set());collListeners.get(c).add(cb);
-   readColl(c).then(rows=>cb({docs:rows.map(r=>({id:r.id,exists:true,data:()=>JSON.parse(JSON.stringify(r.data))}))})).catch(e=>err&&err(e));return()=>collListeners.get(c).delete(cb)},
+   readColl(c).then(rows=>{collCache.set(c,new Map(rows.map(r=>[r.id,r.data])));cb({docs:rows.map(r=>({id:r.id,exists:true,data:()=>JSON.parse(JSON.stringify(r.data))}))})}).catch(e=>err&&err(e));return()=>collListeners.get(c).delete(cb)},
    async get(){const rows=await readColl(c);return{docs:rows.map(r=>({id:r.id,exists:true,data:()=>r.data}))}}}}
 };
 function startRealtime(){
  sb.channel("docs-live").on("postgres_changes",{event:"*",schema:"public",table:"docs"},p=>{const path=(p.new&&p.new.path)||(p.old&&p.old.path);if(path)schedule(path)}).subscribe();
- setInterval(()=>{docListeners.forEach((_,p)=>fireDoc(p));collListeners.forEach((_,c)=>fireColl(c))},isTeacherFlag?20000:60000);
+ setInterval(()=>docListeners.forEach((_,p)=>fireDoc(p)),60000);
+ setInterval(()=>collListeners.forEach((_,c)=>fireColl(c)),isTeacherFlag?180000:300000);
 }
 
 /* ---------- user / downloads / sample ---------- */
