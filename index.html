@@ -1240,7 +1240,7 @@ ${C[mid].map((c,i)=>`ข้อ ${i+1}${c.cr?" (ข้อออกแบบ ใ�
  if(!items)items=kwGrade(mid,sub.C||[]);
  const ca={items,by,at:new Date().toISOString()};
  if(view.pv&&PV&&PV.me.missions[mid]===sub){sub.Cauto=ca;cRunning[mid]=false;lastKey="";render();return}
- try{await db.doc("subs/"+uid).update({missions:{[mid]:{Cauto:ca}}})}catch(e){console.warn(e)}
+ try{await db.doc("subs/"+uid).update({missions:{[mid]:{Cauto:ca}}});const _lv=ca.items.reduce((s,x)=>s+(+x.level||0),0)/ca.items.length;toast(`ตรวจส่วน C ของ ${mid} เสร็จแล้ว ได้ ${(Math.round(_lv*2/3*100)/100).toFixed(1)} / 2 คะแนน`)}catch(e){console.warn(e)}
  cRunning[mid]=false;
 }
 
