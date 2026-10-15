@@ -88,8 +88,9 @@ const LCSS=`
 .lp-hero p{margin:4px 0 0;font-size:14px;color:#bfcbea;line-height:1.4}
 .lp-body{padding:18px 20px 20px}
 .lp-tabs{display:grid;grid-template-columns:1fr 1fr;background:#eef2fa;border-radius:16px;padding:5px;gap:5px;margin-bottom:16px}
-.lp-tabs button{all:unset;cursor:pointer;text-align:center;padding:12px 6px;border-radius:12px;font-weight:800;font-size:16px;color:#4a5568;-webkit-tap-highlight-color:transparent}
-.lp-tabs button.on{background:#fff;color:#13224a;box-shadow:0 4px 12px rgba(19,34,74,.12)}
+.lp-tabs button{all:unset;cursor:pointer;text-align:center;padding:12px 6px;border-radius:12px;font-weight:800;font-size:16px;-webkit-tap-highlight-color:transparent}
+html body .lp-tabs button{background:transparent!important;color:#5d6872!important;border:0!important;box-shadow:none!important}
+html body .lp-tabs button.on{background:linear-gradient(180deg,#5a83ff,#3d64e8)!important;color:#fff!important;box-shadow:0 6px 14px -6px rgba(61,100,232,.8)!important}
 .lp-steps{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
 .lp-steps span{flex:1;min-width:0;white-space:nowrap;text-align:center;font-size:13px;font-weight:700;color:#6b4e07;background:#fff3cf;border-radius:999px;padding:7px 6px}
 .lp-f{margin:0 0 14px}
@@ -99,6 +100,7 @@ const LCSS=`
 .lp-in input:focus{border-color:#3d64e8;background:#fff;box-shadow:0 0 0 4px rgba(61,100,232,.15)}
 .lp-in.pw input{padding-right:92px}
 .lp-eye{all:unset;cursor:pointer;position:absolute;right:8px;top:8px;height:38px;padding:0 12px;border-radius:10px;background:#eef2fa;color:#3d64e8;font-weight:800;font-size:14px;display:flex;align-items:center;gap:4px}
+html body .lp-eye{background:#eef2fa!important;color:#3d64e8!important;border:0!important;box-shadow:none!important}
 .lp-hint{font-size:13.5px;line-height:1.5;color:#5d6872;margin:6px 2px 0}
 .lp-hint b{color:#13224a}
 .lp-ok{color:#1f7a4d!important;font-weight:700}.lp-bad{color:#b42318!important;font-weight:700}
