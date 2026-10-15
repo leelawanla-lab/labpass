@@ -3126,4 +3126,34 @@ function init(){if(typeof render!=="function"){return setTimeout(init,200)}
 window.LP_fun={submitted:(mid,sub)=>{try{submitted(mid,sub)}catch(e){console.warn(e)}},openBox,tone};
 init();
 })();
+</script><script>/* LabPass · บันทึกร่องรอยการคิดเพื่อการวิจัย (เฉพาะนักศึกษาที่ยินยอมเข้าร่วมวิจัยตอนลงทะเบียน)
+   ระหว่างทำภารกิจ ทุก 60 วินาที ถ้ามีอะไรเปลี่ยน จะบันทึกสภาพคำตอบปัจจุบัน (ยังไม่ส่ง) ลงตาราง traces
+   ใช้ดูพัฒนาการการคิด: เลือกคำตอบเปลี่ยนไปอย่างไร ทดคำนวณกี่ขั้น เขียนเหตุผลส่วน C อย่างไร */
+(function(){
+"use strict";
+const sb=()=>window.LP_SB;
+let last="",lastMid="",busy=false,seq=0;
+const val=n=>{const e=document.querySelector(`input[name="${n}"]:checked`);return e?e.value:null};
+const ok=()=>typeof me!=="undefined"&&me&&me.consent===true&&!isTeacher&&!(view&&view.pv)&&typeof uid!=="undefined"&&uid;
+function snap(){if(!ok()||view.name!=="mission")return null;const mid=view.mid;if(me.missions?.[mid])return null;
+ const app=document.getElementById("app");if(!app||!document.getElementById("mf")&&!app.querySelector("[name^=ta],[name^=a]"))return null;
+ const m=MISSIONS.find(x=>x.id===mid);if(!m)return null;const d={};
+ if(m.type==="test"){d.T=T.map((_,i)=>[val("ta"+i),val("tr"+i),val("tc"+i)]);
+  if(!m.pre&&typeof SURVEY!=="undefined"){d.S=SURVEY.map((_,i)=>val("sv"+i));const o1=document.getElementById("so1"),o2=document.getElementById("so2");d.open=[o1?.value||"",o2?.value||""]}}
+ else{d.A=(A[mid]||[]).map((_,i)=>[val("a"+i),val("c"+i)]);
+  d.B={};(B[mid]||[]).forEach(f=>{const e=document.getElementById("b_"+f.k);if(e&&e.value!=="")d.B[f.k]=e.value});
+  d.W={};app.querySelectorAll(".wk").forEach(i=>{const v=i.value.trim();if(v)(d.W[i.dataset.wk]=d.W[i.dataset.wk]||{})[i.dataset.wi]=v.slice(0,300)});
+  d.C=(C[mid]||[]).map((_,i)=>(document.getElementById("cc"+i)?.value||"").slice(0,1500));
+  d.D={muddy:(document.getElementById("dm")?.value||"").slice(0,500),conf:val("dcf"),time:document.getElementById("dt")?.value||""};
+  try{if(typeof TMR!=="undefined"&&TMR&&TMR.mid===mid)d.TM={...TMR.t}}catch(e){}
+  try{if(typeof SCU!=="undefined"&&SCU[mid])d.SC=SCU[mid]}catch(e){}}
+ const filled=JSON.stringify(d).replace(/null|""|\[\]|\{\}|[\[\]{},:"]/g,"").length;if(filled<2)return null;
+ return{mid,d}}
+async function tick(kind){if(busy)return;const s=snap();if(!s)return;const key=s.mid+JSON.stringify(s.d);if(key===last)return;
+ if(s.mid!==lastMid){seq=0;lastMid=s.mid}busy=true;
+ try{const{error}=await sb().from("traces").insert({uid,mid:s.mid,seq:++seq,kind:kind||"auto",d:s.d});if(!error)last=key}catch(e){}busy=false}
+setInterval(()=>{if(document.visibilityState==="visible")tick("auto")},60000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")tick("leave")});
+window.LP_trace={tick};
+})();
 </script></body></html>
