@@ -2421,7 +2421,7 @@ async function submit(m){
  if(S(m.id).due){const end=new Date(S(m.id).due+"T23:59:59");sub.late=new Date(sub.at)>end?1:0}
  $("#send").disabled=true;
  if(pv){PV.me.missions[m.id]=sub;lastKey="";render();scrollTo(0,0);toast("ส่งทดลองแล้ว (ไม่บันทึกลงระบบ)");if(m.type!=="test")gradeC(m.id,sub);return}
- try{await db.doc("subs/"+uid).update({missions:{[m.id]:sub}});toast("ส่ง "+m.id+" แล้ว");scrollTo(0,0);if(m.type!=="test")gradeC(m.id,sub)}
+ try{await db.doc("subs/"+uid).update({missions:{[m.id]:sub}});toast("ส่ง "+m.id+" แล้ว");scrollTo(0,0);if(m.type!=="test")gradeC(m.id,sub);window.LP_fun&&LP_fun.submitted(m.id,sub)}
  catch(e){err.textContent="ส่งไม่สำเร็จ ("+(e.code||"error")+") ลองอีกครั้ง ถ้ายังไม่ได้ให้แจ้งอาจารย์";err.hidden=false;$("#send").disabled=false}
 }
 
@@ -2881,4 +2881,249 @@ async function exportCSV(){
 }
 LP_start();
 </script>
-</body></html>
+<script>/* LabPass · ความสนุก 8 อย่าง (ฉลองส่ง · ไอคอนเด้ง · คอมโบ · เลื่อน Lv. · กล่องลับ · ทายผล · หลอดพลัง Section · เสียง)
+   โหลดหลังแอปหลัก ใช้ตัวแปรของแอป (me, view, MISSIONS, A, ITEMS, ...) แบบอ่านอย่างเดียว
+   ข้อมูลใหม่ที่บันทึก: subs/{uid}.fun = {box:{M1:"hhB"}, team:["vestB"]} และตาราง polls */
+(function(){
+"use strict";
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sb=()=>window.LP_SB;
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const ok=()=>typeof me!=="undefined"&&me&&!isTeacher&&!(view&&view.pv)&&typeof uid!=="undefined"&&uid;
+const esc2=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const secOf=()=>String(me?.section||"").trim().toUpperCase()||"ALL";
+
+/* ---------- 8) เสียง ---------- */
+let ac=null;const sndOn=()=>LS.get("lp_snd",false);
+function tone(seq){if(!sndOn())return;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();const now=ac.currentTime;
+ seq.forEach(([f,t,d,type])=>{const o=ac.createOscillator(),g=ac.createGain();o.type=type||"sine";o.frequency.value=f;g.gain.setValueAtTime(.0001,now+t);g.gain.exponentialRampToValueAtTime(.16,now+t+.02);g.gain.exponentialRampToValueAtTime(.0001,now+t+d);o.connect(g).connect(ac.destination);o.start(now+t);o.stop(now+t+d+.05)})}catch(e){}}
+const SND={ok:[[880,0,.1],[1320,.08,.16]],no:[[220,0,.18,"triangle"],[165,.09,.22,"triangle"]],win:[[523,0,.14],[659,.12,.14],[784,.24,.14],[1047,.36,.34]],pop:[[660,0,.08],[990,.06,.12]],lv:[[392,0,.16],[523,.14,.16],[659,.28,.16],[784,.42,.16],[1047,.56,.45]],box:[[300,0,.08,"square"],[340,.1,.08,"square"],[380,.2,.08,"square"],[1200,.36,.3]]};
+function sndBtn(){const bar=document.getElementById("lpbar");if(!bar||document.getElementById("lpsnd")||!ok())return;
+ const a=document.createElement("a");a.href="#";a.id="lpsnd";a.style.cssText="font-weight:700;color:#13224a;text-decoration:none";
+ const upd=()=>a.textContent=sndOn()?"🔊 เสียง: เปิด":"🔇 เสียง: ปิด";upd();
+ a.onclick=e=>{e.preventDefault();LS.set("lp_snd",!sndOn());upd();tone(SND.ok)};
+ const first=bar.querySelector("#lpai")||bar.firstChild;bar.insertBefore(a,first?first.nextSibling:null)}
+
+/* ---------- สไตล์ ---------- */
+const st=document.createElement("style");st.textContent=`
+.lpfx [hidden],.lpw [hidden]{display:none!important}
+.lpfx{position:fixed;inset:0;z-index:9990;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(11,21,51,.62);animation:lpfade .2s ease}
+@keyframes lpfade{from{opacity:0}}
+.lpfx canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.lpcard{position:relative;background:#fff;color:#13224a;border-radius:24px;max-width:420px;width:100%;padding:22px 20px 18px;text-align:center;box-shadow:0 30px 70px rgba(0,0,0,.4);font-family:'IBM Plex Sans Thai',Tahoma,sans-serif;max-height:92vh;overflow:auto}
+.lpcard h2{font:800 26px/1.25 Anuphan,'IBM Plex Sans Thai',sans-serif;margin:4px 0 6px}
+.lpcard .sub{color:#55627a;font-size:15px;margin:0 0 10px}
+.lpbig{font:800 52px/1 Anuphan,'IBM Plex Sans Thai',sans-serif;font-variant-numeric:tabular-nums;margin:6px 0}
+.lpbig small{font-size:20px;color:#55627a}
+.lpstamp{display:inline-block;font:800 30px/1 Anuphan,sans-serif;color:#1f8a57;border:4px solid #1f8a57;border-radius:12px;padding:8px 16px;transform:rotate(-8deg) scale(0);opacity:0;margin:6px 0}
+.lpstamp.go{animation:lpstamp .55s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes lpstamp{to{transform:rotate(-8deg) scale(1);opacity:1}}
+.lpdots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+.lpdots i{width:18px;height:18px;border-radius:50%;background:#dde3ee;display:block;transition:background .2s,transform .2s}
+.lpdots i.y{background:#1f8a57;transform:scale(1.15)}.lpdots i.n{background:#e2553a}
+.lpcombo{font:800 30px/1 Anuphan,sans-serif;color:#e2553a;min-height:34px}
+.lpcombo small{display:block;font:600 14px/1.4 'IBM Plex Sans Thai',sans-serif;color:#55627a;margin-top:4px}
+.lpbtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.lpbtns button{all:unset;box-sizing:border-box;cursor:pointer;min-height:48px;padding:0 18px;border-radius:14px;font-weight:800;background:#3d64e8;color:#fff;display:flex;align-items:center}
+.lpbtns button.g{background:#eef2fa;color:#13224a}
+.lpbtns button.gold{background:linear-gradient(180deg,#e9c55c,#c9971c);color:#1b1404}
+.lpbtns button:focus-visible{outline:3px solid #d4a62a;outline-offset:2px}
+.lplv{width:200px;height:120px;margin:10px auto;border-radius:16px;background:linear-gradient(160deg,#13224a,#24407f);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.lplv b{font:800 40px/1 Anuphan,sans-serif}.lplv span{font-size:14px;color:#bfcbea}
+.lplv.up{animation:lpflip 1s ease forwards}
+@keyframes lpflip{0%{transform:rotateY(0)}50%{transform:rotateY(90deg)}100%{transform:rotateY(0);box-shadow:0 0 0 4px #d4a62a,0 0 50px #d4a62a}}
+.lpbox{font-size:84px;line-height:1;margin:8px 0;display:inline-block}
+.lpbox.shake{animation:lpshake .7s ease}
+@keyframes lpshake{15%,55%{transform:rotate(-12deg)}35%,75%{transform:rotate(12deg)}}
+.lploot{font:800 22px/1.3 Anuphan,sans-serif;margin:4px 0}
+.lpfact{background:#fff3cf;color:#6b4e07;border-radius:14px;padding:10px 12px;font-size:14.5px;line-height:1.55;text-align:left;margin-top:8px}
+.dk.lpbump{animation:lpbump .8s ease}
+@keyframes lpbump{0%,100%{transform:translateY(0)}20%{transform:translateY(-12px) rotate(-6deg)}45%{transform:translateY(0)}65%{transform:translateY(-6px) rotate(4deg)}}
+.dk .dkdot.lpn{animation:lppop .4s .2s cubic-bezier(.2,1.8,.4,1) both}
+@keyframes lppop{from{transform:scale(0)}to{transform:scale(1)}}
+.lpw{background:#fff;border:1px solid #dde3ee;border-radius:18px;padding:14px 16px;margin:0 0 14px;color:#13224a;font-family:'IBM Plex Sans Thai',Tahoma,sans-serif}
+.lpw h3{font:800 18px/1.35 Anuphan,'IBM Plex Sans Thai',sans-serif;margin:0 0 4px}
+.lpw .m{color:#55627a;font-size:14px;margin:0 0 8px}
+.lpvote{display:flex;gap:8px;flex-wrap:wrap}
+.lpvote button{all:unset;box-sizing:border-box;cursor:pointer;flex:1 1 90px;text-align:center;min-height:46px;border-radius:12px;border:1.5px solid #cfd7e6;background:#f8faff;font-weight:700;color:#13224a;padding:0 10px}
+.lpvote button:focus-visible{outline:3px solid #d4a62a}
+.lpsplit{display:grid;gap:6px;font-size:14px}
+.lpsplit div{display:grid;grid-template-columns:minmax(70px,auto) 1fr 44px;gap:8px;align-items:center}
+.lpbar{height:12px;border-radius:999px;background:#e3e8f2;overflow:hidden}
+.lpbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3d64e8,#d4a62a);transition:width .7s cubic-bezier(.2,.9,.3,1)}
+.lpbar.big{height:18px}
+.lpans{margin-top:8px;font-size:14px;border-radius:10px;padding:8px 10px;background:#e8f6ee;color:#14532d}
+.lpmile{display:flex;justify-content:space-between;font-size:13px;color:#55627a;margin-top:6px;gap:8px;flex-wrap:wrap}
+.lpmile b{color:#13224a}
+@media (prefers-reduced-motion:reduce){.lpfx *,.dk.lpbump{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+`;document.head.appendChild(st);
+
+/* ---------- พลุ (canvas) ---------- */
+function burst(cv,n){if(reduce||!cv)return;const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;const c=cv.getContext("2d");c.scale(d,d);
+ const cols=["#3d64e8","#d4a62a","#62e8ff","#8a5cff","#1f8a57","#e2553a"];const ps=Array.from({length:n||120},()=>({x:r.width/2+(Math.random()-.5)*80,y:r.height*.42,vx:(Math.random()-.5)*12,vy:-Math.random()*12-4,s:5+Math.random()*6,a:Math.random()*6,va:(Math.random()-.5)*.3,c:cols[Math.random()*cols.length|0]}));
+ let t=0;(function f(){c.clearRect(0,0,r.width,r.height);ps.forEach(p=>{p.vy+=.3;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.a+=p.va;c.save();c.translate(p.x,p.y);c.rotate(p.a);c.fillStyle=p.c;c.fillRect(-p.s/2,-p.s/3,p.s,p.s*.66);c.restore()});if(++t<150)requestAnimationFrame(f);else c.clearRect(0,0,r.width,r.height)})()}
+function overlay(html){document.querySelectorAll(".lpfx").forEach(e=>e.remove());const o=document.createElement("div");o.className="lpfx";o.setAttribute("role","dialog");o.setAttribute("aria-modal","true");
+ o.innerHTML=`<canvas></canvas><div class="lpcard">${html}</div>`;document.body.appendChild(o);o.addEventListener("click",e=>{if(e.target===o)o.remove()});
+ const f=o.querySelector("button");if(f)setTimeout(()=>f.focus(),50);return o}
+const wait=ms=>new Promise(r=>setTimeout(r,reduce?0:ms));
+
+/* ---------- ข้อมูลระดับ / ปลดล็อก ---------- */
+function curLv(){try{const P=power(me.missions,me.sid,myGrades);return P?[50,70,85].filter(t=>P.pct>=t).length+1:1}catch(e){return 1}}
+function ctxNow(){try{const P=power(me.missions,me.sid,myGrades);return unlockCtx({...(me.missions||{}),sid:me.sid},P,curLv())}catch(e){return null}}
+const condItem=new WeakMap();const itemName={};
+function indexItems(){Object.keys(ITEMS).forEach(sl=>ITEMS[sl].forEach(it=>{if(it[2])condItem.set(it[2],it[0]);itemName[it[0]]=[sl,it[1],it[2]]}))}
+const owned=()=>{const f=me?.fun||{};return new Set([...Object.values(f.box||{}),...(f.team||[])])};
+let origUnlocked=null;
+function patchUnlock(){if(origUnlocked||typeof isUnlocked!=="function")return;origUnlocked=isUnlocked;indexItems();
+ window.isUnlocked=function(cond,ctx){if(origUnlocked(cond,ctx))return true;const id=cond&&condItem.get(cond);return !!(id&&me&&owned().has(id))};}
+function unlockedIds(ctx){const out=[];Object.keys(ITEMS).forEach(sl=>ITEMS[sl].forEach(it=>{if(it[2]&&isUnlocked(it[2],ctx))out.push(it[0])}));return out}
+
+/* ---------- 5) กล่องอุปกรณ์ลับ ---------- */
+const FACT={
+ slump:"กรวยยุบตัวสูง 30 ซม. ฐาน 20 ซม. ปาก 10 ซม. ใส่คอนกรีต 3 ชั้น กระทุ้งชั้นละ 25 ครั้ง ใช้วัดความข้นเหลวของคอนกรีตสด",
+ cube:"ก้อนลูกบาศก์ 15 ซม. ให้กำลังอัดสูงกว่าทรงกระบอก 15×30 ซม. จึงต้องแปลงค่าก่อนเทียบกับ f'c",
+ cyl:"แบบหล่อทรงกระบอกมาตรฐาน 15×30 ซม. ทดสอบกำลังอัดที่อายุ 7 และ 28 วัน",
+ vernier:"เวอร์เนียร์อ่านละเอียดได้ 0.02 มม. วัดขนาดก้อนตัวอย่างหลายตำแหน่งแล้วเฉลี่ยก่อนคำนวณพื้นที่หน้าตัด",
+ hammer:"Schmidt Hammer ประเมินกำลังอัดจากค่าการสะท้อนกลับ (Rebound Number) ใช้ประกอบผลอื่น ไม่ใช้ตัดสินลำพัง",
+ sieve:"ตะแกรงร่อนใช้หาขนาดคละของมวลรวม ผลนำไปหาโมดูลัสความละเอียด (FM) ของทราย",
+ trowel:"เกรียงใช้ปาดผิวคอนกรีตและมอร์ตาร์ให้เรียบ ปาดเร็วเกินไปตอนมีน้ำเยิ้มทำให้ผิวร่อนได้",
+ level:"ระดับน้ำใช้ตรวจแนวราบของแบบหล่อ แบบเอียงทำให้ก้อนตัวอย่างรับแรงไม่สม่ำเสมอ",
+ thermo:"อุณหภูมิสูงทำให้ซีเมนต์ก่อตัวเร็วขึ้น ห้องแล็บจึงควบคุมอุณหภูมิประมาณ 23 ± 2 °C",
+ beaker:"บีกเกอร์ตวงน้ำผสม ความคลาดเคลื่อนของน้ำเพียงเล็กน้อยเปลี่ยนอัตราส่วน w/c ได้ชัดเจน",
+ square:"ฉากเหล็กตรวจมุมของแบบหล่อ ผิวรับแรงที่ไม่ตั้งฉากทำให้กำลังอัดต่ำกว่าจริง",
+ calc:"เขียนหน่วยทุกบรรทัดตอนกดเครื่องคิดเลข ช่วยจับความผิดพลาดเรื่องหน่วยได้ดีที่สุด",
+ tape:"ตลับเมตรวัดค่าการยุบตัวจากยอดกรวยถึงยอดคอนกรีตที่ยุบลง อ่านเป็นมิลลิเมตร",
+ rebar:"เหล็กเส้นรับแรงดึง คอนกรีตรับแรงอัด ทำงานร่วมกันเป็นคอนกรีตเสริมเหล็ก",
+ laser:"เลเซอร์วัดระยะช่วยวัดพื้นที่หน้างานเพื่อคำนวณปริมาตรคอนกรีตที่ต้องสั่ง",
+ drill:"เจาะแกนคอนกรีต (Core) จากโครงสร้างจริงเพื่อทดสอบกำลังอัดเมื่อสงสัยคุณภาพ",
+ tablet:"บันทึกผลทดสอบทันทีหน้างานลดความผิดพลาดจากการจดซ้ำ",
+ roll:"แบบก่อสร้างระบุ f'c ที่ต้องการ ซึ่งเป็นจุดเริ่มต้นของการออกแบบส่วนผสม",
+ flash:"ตรวจรอยร้าวด้วยการส่องไฟเอียงกับผิว จะเห็นรอยร้าวเล็ก ๆ ชัดขึ้น",
+ shovel:"คลุกส่วนผสมให้ทั่วจนสีสม่ำเสมอก่อนเทลงแบบ",
+ wrench:"ตรวจน็อตแบบหล่อให้แน่นก่อนเท แบบหลวมทำให้ปูนรั่วและก้อนเสียรูป",
+ model:"โมเดลอาคารช่วยสื่อสารแนวคิดโครงสร้างให้คนที่ไม่ใช่วิศวกรเข้าใจ",
+ mega:"สั่งงานหน้างานให้ชัด ลดความผิดพลาดตอนเทคอนกรีตซึ่งต้องทำต่อเนื่อง",
+ laptop:"สเปรดชีตช่วยคำนวณส่วนผสมหลายสูตรเพื่อเทียบหาสูตรที่คุ้มที่สุด",
+ trophy:"ผลงานดีมาจากการเตรียมตัวก่อนเข้าแล็บอย่างที่คุณกำลังทำอยู่"};
+const FACT_SLOT={hat:"หมวกนิรภัยต้องสวมทุกครั้งในพื้นที่ก่อสร้าง และควรเปลี่ยนเมื่อมีรอยร้าวหรือผ่านการกระแทกแรง",
+ top:"เสื้อสะท้อนแสงช่วยให้คนขับเครื่องจักรมองเห็นในพื้นที่ก่อสร้าง",
+ pants:"กางเกงช่างที่มีสนับเข่าช่วยตอนคุกเข่าวัดหรืออัดก้อนตัวอย่าง",
+ shoes:"รองเท้านิรภัยหัวเหล็กกันของตกใส่เท้า บูตยางกันปูนสดซึ่งเป็นด่างกัดผิว",
+ acc:"ปูนซีเมนต์สดเป็นด่างสูง สวมถุงมือ แว่น และหน้ากากกันฝุ่นทุกครั้งที่ผสม",
+ hand:"เตรียมอุปกรณ์ให้ครบก่อนผสม คอนกรีตสดมีเวลาทำงานจำกัด"};
+const boxMissions=()=>["M1","M2","M3","M4","M5"].filter(id=>{const s=me.missions?.[id];try{return s&&onTime(id,s,me.section)}catch(e){return false}});
+const boxesLeft=()=>boxMissions().filter(id=>!me.fun?.box?.[id]);
+function pickLoot(){const ctx=ctxNow();const lv=curLv();const own=owned();const cand=[];
+ Object.keys(ITEMS).forEach(sl=>ITEMS[sl].forEach(it=>{if(!it[2]||own.has(it[0])||(origUnlocked||isUnlocked)(it[2],ctx))return;const c=it[2];const w=c[0]==="lv"?(c[1]===lv+1?6:c[1]===lv+2?2:1):1;for(let i=0;i<w;i++)cand.push(it[0])}));
+ return cand.length?cand[Math.random()*cand.length|0]:null}
+async function openBox(mid){if(!me.missions?.[mid]||me.fun?.box?.[mid])return;
+ const id=pickLoot();const o=overlay(`<p class="sub">กล่องอุปกรณ์ลับจาก ${esc2(mid)} · ส่งตรงเวลา</p><div class="lpbox" id="lpbx">🎁</div><div class="lploot" id="lplt">กำลังเปิด…</div><div id="lpfc"></div><div class="lpbtns" id="lpbb" hidden><button type="button" class="gold" id="lpdress">ไปแต่งตัวเลย</button><button type="button" class="g" id="lpclose">ปิด</button></div>`);
+ const bx=o.querySelector("#lpbx");bx.classList.add("shake");tone(SND.box);await wait(750);
+ if(!id){bx.textContent="🏅";o.querySelector("#lplt").textContent="คุณปลดล็อกของครบทุกชิ้นแล้ว!";}
+ else{const [sl,name]=itemName[id];bx.textContent="✨";o.querySelector("#lplt").textContent=`ได้ ${name}`;o.querySelector("#lpfc").innerHTML=`<div class="lpfact"><b>รู้ไหม</b> ${esc2(FACT[id]||FACT_SLOT[sl]||"")}</div>`;
+  try{const d=await claude.use("db");await d.doc("subs/"+uid).update({fun:{box:{[mid]:id}}})}catch(e){console.warn(e)}}
+ burst(o.querySelector("canvas"),110);tone(SND.win);o.querySelector("#lpbb").hidden=false;
+ o.querySelector("#lpclose").onclick=()=>{o.remove();lastKey="";render()};
+ o.querySelector("#lpdress").onclick=()=>{o.remove();view={name:"home"};homeTab="dress";lastKey="";render();scrollTo(0,0)}}
+
+/* ---------- 1+3) ฉลองตอนส่ง + คอมโบ ---------- */
+async function submitted(mid,sub){if(!ok())return;const m=MISSIONS.find(x=>x.id===mid);if(!m)return;
+ const isTest=m.type==="test";const items=!isTest&&A[mid]?A[mid].map((it,i)=>+sub.A?.[i]?.a===it.k):[];
+ let auto=null;try{if(!isTest){const g=grade(mid,me.sid,sub);auto=g?g.auto:null}}catch(e){}
+ const box=!isTest&&(()=>{try{return onTime(mid,sub,me.section)}catch(e){return false}})();
+ const o=overlay(`<p class="sub">${esc2(m.id)} · ${esc2(m.title)}</p><h2>ส่งเรียบร้อย!</h2>
+  ${items.length?`<div class="lpcombo" id="lpcb">🔥 ×0<small>ส่วน A ตอบถูกติดกัน</small></div><div class="lpdots">${items.map(()=>"<i></i>").join("")}</div>`:""}
+  ${auto!=null?`<div class="lpbig"><span id="lpsc">0.0</span><small> / 8 คะแนน (A+B+D)</small></div><p class="sub">ส่วน C กำลังตรวจ เสร็จแล้วระบบแจ้งเอง</p>`:""}
+  <div class="lpstamp" id="lpst">ส่งแล้ว ✓</div>
+  ${box?`<p class="sub" id="lpbxm" hidden>ส่งตรงเวลา ได้ <b>กล่องอุปกรณ์ลับ</b> 1 กล่อง 🎁</p>`:""}
+  <div class="lpbtns" id="lpb1" hidden>${box?`<button type="button" class="gold" id="lpob">เปิดกล่อง</button>`:""}<button type="button" class="${box?"g":""}" id="lpres">ดูผลและคำแนะนำ</button></div>`);
+ const dots=[...o.querySelectorAll(".lpdots i")];let c=0,best=0;
+ for(let i=0;i<items.length;i++){await wait(260);if(items[i]){c++;best=Math.max(best,c);dots[i].className="y";tone(SND.ok)}else{c=0;dots[i].className="n";tone(SND.no)}
+  const cb=o.querySelector("#lpcb");cb.innerHTML=`🔥 ×${c}<small>${best>=3?`คอมโบสูงสุด ×${best} เข้าใจต่อเนื่องมาก!`:"ส่วน A ตอบถูกติดกัน"}</small>`;if(!reduce&&items[i])cb.animate([{transform:"scale(1.3)"},{transform:"scale(1)"}],{duration:280})}
+ if(auto!=null){const el=o.querySelector("#lpsc"),t0=performance.now();await new Promise(res=>{(function f(n){const k=reduce?1:Math.min(1,(n-t0)/900);el.textContent=(auto*(1-Math.pow(1-k,3))).toFixed(1);if(k<1)requestAnimationFrame(f);else res()})(t0)})}
+ o.querySelector("#lpst").classList.add("go");burst(o.querySelector("canvas"),130);tone(SND.win);
+ await wait(500);const bm=o.querySelector("#lpbxm");if(bm)bm.hidden=false;o.querySelector("#lpb1").hidden=false;
+ o.querySelector("#lpres").onclick=()=>o.remove();const ob=o.querySelector("#lpob");if(ob)ob.onclick=()=>{o.remove();openBox(mid)}}
+
+/* ---------- 4) ฉากเลื่อนระดับ ---------- */
+function checkLevel(){const k="lp_lv_"+uid,lv=curLv(),prev=LS.get(k,null);LS.set(k,lv);if(prev==null||lv<=prev)return;
+ const n=Object.keys(ITEMS).reduce((s,sl)=>s+ITEMS[sl].filter(it=>it[2]&&it[2][0]==="lv"&&it[2][1]===lv).length,0);
+ const o=overlay(`<p class="sub">ยินดีด้วย!</p><h2>เลื่อนระดับแล้ว</h2><div class="lplv" id="lplv"><b>Lv.${prev}</b><span>${esc2(LV_INFO[prev].n)}</span></div><p class="sub" id="lplm">&nbsp;</p><div class="lpbtns"><button type="button" class="gold" id="lpgo">ไปแต่งตัว</button><button type="button" class="g" id="lpx">ไว้ทีหลัง</button></div>`);
+ const c=o.querySelector("#lplv");setTimeout(()=>{c.classList.add("up");setTimeout(()=>{c.innerHTML=`<b>Lv.${lv}</b><span>${esc2(LV_INFO[lv].n)}</span>`;o.querySelector("#lplm").innerHTML=`ปลดล็อกของใหม่ <b>${n}</b> ชิ้น · ${esc2(LV_INFO[lv].d)}`;burst(o.querySelector("canvas"),140);tone(SND.lv)},reduce?0:480)},reduce?0:350);
+ o.querySelector("#lpx").onclick=()=>o.remove();o.querySelector("#lpgo").onclick=()=>{o.remove();view={name:"home"};homeTab="dress";lastKey="";render();scrollTo(0,0)}}
+
+/* ---------- 2) ไอคอนเด้ง + จุดแดง ---------- */
+function badges(){const ctx=ctxNow();if(!ctx)return;const sk="lp_seenit_"+uid;let seen=LS.get(sk,null);const ids=unlockedIds(ctx);
+ if(seen==null){seen=ids;LS.set(sk,seen)}
+ if(view.name==="home"&&homeTab==="dress"){seen=ids;LS.set(sk,seen)}
+ const nItems=ids.filter(i=>!seen.includes(i)).length+boxesLeft().length;
+ const nMis=MISSIONS.filter(m=>{try{return S(m.id).open&&!me.missions?.[m.id]}catch(e){return false}}).length;
+ [["dkMis",nMis,"lp_bd_mis"],["dress",nItems,"lp_bd_dress"]].forEach(([k,n,key])=>{const b=document.querySelector(`.dock [data-dk="${k}"]`);if(!b)return;
+  let d=b.querySelector(".dkdot");if(n>0&&!(k==="dress"&&view.name==="home"&&homeTab==="dress")){if(!d){d=document.createElement("i");d.className="dkdot";b.prepend(d)}d.textContent=n}else if(d){d.remove()}
+  const prev=LS.get(key+"_"+uid,0);if(n>prev&&d){d.classList.remove("lpn");void d.offsetWidth;d.classList.add("lpn");b.classList.remove("lpbump");void b.offsetWidth;b.classList.add("lpbump");tone(SND.pop)}LS.set(key+"_"+uid,n)})}
+
+/* ---------- 6) ทายผลก่อนแล็บ ---------- */
+const POLL={
+ M1:{q:"ถ้าเพิ่มอัตราส่วนน้ำต่อซีเมนต์ (w/c) จาก 0.45 เป็น 0.60 กำลังอัดที่ 28 วันจะเป็นอย่างไร",o:["เพิ่มขึ้น","เท่าเดิม","ลดลง"],k:2,why:"น้ำส่วนเกินระเหยแล้วเหลือช่องว่างในซีเมนต์เพสต์มากขึ้น กำลังอัดจึงลดลง ตามกฎของ Abrams"},
+ M2:{q:"ถ้าเติมน้ำเพิ่มในส่วนผสมเดิมโดยไม่เพิ่มซีเมนต์ ค่าการยุบตัว (Slump) จะเป็นอย่างไร",o:["มากขึ้น","เท่าเดิม","น้อยลง"],k:0,why:"น้ำมากขึ้นทำให้คอนกรีตเหลวขึ้น ค่ายุบตัวมากขึ้น แต่กำลังอัดจะลดลงด้วย จึงไม่ควรเติมน้ำเองหน้างาน"},
+ M3:{q:"ถ้าห้องแล็บร้อนกว่าปกติ เวลาก่อตัวเริ่มต้นของซีเมนต์ (Vicat) จะเป็นอย่างไร",o:["เร็วขึ้น","เท่าเดิม","ช้าลง"],k:0,why:"ปฏิกิริยาไฮเดรชันเร็วขึ้นเมื่ออุณหภูมิสูง ซีเมนต์จึงก่อตัวเร็วขึ้น ห้องแล็บจึงต้องควบคุมอุณหภูมิ"},
+ M4:{q:"กำลังอัดของก้อนมอร์ตาร์อายุ 7 วัน เทียบกับอายุ 28 วัน จะเป็นอย่างไร",o:["สูงกว่า","ใกล้เคียงกัน","ต่ำกว่า"],k:2,why:"กำลังอัดพัฒนาต่อเนื่องตามอายุบ่ม ที่ 7 วันโดยทั่วไปได้ราว 65–75% ของกำลังที่ 28 วัน"},
+ M5:{q:"ค่า Rebound Number จาก Schmidt Hammer สูงขึ้น บอกอะไรเกี่ยวกับกำลังอัดที่ผิวคอนกรีต",o:["มีแนวโน้มสูงขึ้น","ไม่เกี่ยวกัน","มีแนวโน้มต่ำลง"],k:0,why:"ผิวที่แข็งกว่าสะท้อนค้อนกลับได้มากกว่า จึงมีแนวโน้มกำลังอัดสูงกว่า แต่ต้องใช้ประกอบกับการทดสอบอื่นเสมอ"}};
+const pollCache={};
+async function pollData(mid,force){const c=pollCache[mid];if(c&&!force&&Date.now()-c.t<60000)return c.d;
+ try{const[{data:mine},{data:cnt}]=await Promise.all([sb().from("polls").select("choice").eq("uid",uid).eq("mid",mid).maybeSingle(),sb().rpc("poll_counts",{p_mid:mid,p_sec:secOf()})]);
+  const d={mine:mine?mine.choice:null,cnt:cnt||null};pollCache[mid]={t:Date.now(),d};return d}catch(e){return {mine:null,cnt:null}}}
+function pollHTML(mid,d){const P=POLL[mid];const st=S(mid);const revealed=st.reveal||(st.due&&Date.now()>new Date(st.due+"T23:59:59").getTime());
+ if(d.mine==null)return`<h3>🔮 ทายผลก่อนแล็บ · ${mid}</h3><p class="m">${esc2(P.q)}</p><div class="lpvote">${P.o.map((o,i)=>`<button type="button" data-lpv="${i}">${esc2(o)}</button>`).join("")}</div><p class="m" style="margin:8px 0 0">ไม่มีผลต่อคะแนน · เห็นผลทั้งกลุ่มเรียนหลังทาย (ไม่แสดงชื่อ)</p>`;
+ const row=(lab,arr)=>{arr=arr||[0,0,0];const n=arr.reduce((a,b)=>a+(+b||0),0),t=n||1;return`<div style="display:block;font-weight:700;margin-top:6px">${lab} · ${n} คน</div>`+P.o.map((o,i)=>`<div><span>${esc2(o)}${i===d.mine?" (ฉัน)":""}</span><div class="lpbar"><i data-w="${Math.round((arr?.[i]||0)/t*100)}"></i></div><b>${Math.round((arr?.[i]||0)/t*100)}%</b></div>`).join("")};
+ return`<h3>🔮 ทายผลก่อนแล็บ · ${mid}</h3><p class="m">${esc2(P.q)}</p><div class="lpsplit">${row(secOf()==="ALL"?"ทั้งรายวิชา":"Section "+esc2(secOf()),d.cnt?.sec)}${row("ทั้งรายวิชา",d.cnt?.all)}</div>
+  ${revealed?`<div class="lpans">เฉลย: <b>${esc2(P.o[P.k])}</b> ${d.mine===P.k?"· คุณทายถูก! 🎯":""}<br>${esc2(P.why)}</div>`:`<p class="m" style="margin:8px 0 0">เฉลยหลังทำแล็บ (หลังวันกำหนดส่ง) ไปดูผลจริงในห้องแล็บกัน</p>`}`}
+async function mountPoll(){if(view.name!=="mission"||!POLL[view.mid])return;const mid=view.mid;let w=document.getElementById("lppoll");
+ if(w&&w.dataset.mid===mid&&w.isConnected&&w.dataset.ready)return;const app=document.getElementById("app");const first=app&&app.querySelector("section.sheet");if(!first)return;
+ if(!w){w=document.createElement("section");w.id="lppoll";w.className="lpw";}w.dataset.mid=mid;first.parentNode.insertBefore(w,first);w.innerHTML=`<h3>🔮 ทายผลก่อนแล็บ · ${mid}</h3><p class="m">กำลังโหลด…</p>`;
+ const d=await pollData(mid);if(view.mid!==mid)return;w.innerHTML=pollHTML(mid,d);w.dataset.ready="1";anim(w);
+ w.querySelectorAll("[data-lpv]").forEach(b=>b.onclick=async()=>{const ch=+b.dataset.lpv;w.querySelectorAll("button").forEach(x=>x.disabled=true);
+  const{error}=await sb().from("polls").upsert({uid,mid,sec:secOf(),choice:ch});if(error){toast("บันทึกคำทายไม่สำเร็จ ลองใหม่");w.querySelectorAll("button").forEach(x=>x.disabled=false);return}
+  tone(SND.ok);const nd=await pollData(mid,true);w.innerHTML=pollHTML(mid,nd);anim(w)})}
+function anim(w){requestAnimationFrame(()=>w.querySelectorAll(".lpbar i[data-w]").forEach(i=>i.style.width=i.dataset.w+"%"))}
+
+/* ---------- 7) หลอดพลังร่วมของ Section ---------- */
+const TEAM=[[50,"vestB"],[100,"hhB"]];let teamCache=null;
+async function teamData(force){if(teamCache&&!force&&Date.now()-teamCache.t<60000)return teamCache.d;
+ try{const{data}=await sb().rpc("section_progress",{p_sec:secOf()});teamCache={t:Date.now(),d:data};return data}catch(e){return null}}
+async function mountTeam(){const onLobby=view.name==="home"&&homeTab==="top",onClass=view.name==="class";if(!onLobby&&!onClass)return;
+ const app=document.getElementById("app");if(!app)return;let w=document.getElementById("lpteam");if(w&&w.isConnected&&w.dataset.ready&&w.dataset.v===view.name)return;
+ const secs=[...app.querySelectorAll("section.sheet")];const anchor=onLobby?secs[1]:secs[0];if(!anchor)return;
+ if(!w){w=document.createElement("section");w.id="lpteam";w.className="lpw"}w.dataset.v=view.name;
+ if(onLobby)anchor.parentNode.insertBefore(w,anchor);else anchor.parentNode.insertBefore(w,anchor.nextSibling);
+ w.innerHTML=`<h3>⚡ หลอดพลังร่วม · ${secOf()==="ALL"?"ทั้งรายวิชา":"Section "+esc2(secOf())}</h3><p class="m">กำลังโหลด…</p>`;
+ const d=await teamData();if(!d||!d.n){w.innerHTML=`<h3>⚡ หลอดพลังร่วม</h3><p class="m">ยังไม่มีข้อมูลกลุ่มเรียน</p>`;w.dataset.ready="1";return}
+ const open=MISSIONS.filter(m=>{try{return S(m.id).open}catch(e){return false}}).map(m=>m.id);const need=d.n*Math.max(1,open.length);
+ const got=open.reduce((s,id)=>s+(+(d.m||{})[id]||0),0);const pct=Math.min(100,Math.round(got/need*100));
+ const nm=id=>itemName[id]?itemName[id][1]:id;const have=new Set(me.fun?.team||[]);
+ w.innerHTML=`<h3>⚡ หลอดพลังร่วม · ${secOf()==="ALL"?"ทั้งรายวิชา":"Section "+esc2(secOf())}</h3><p class="m">ทุกการส่งภารกิจที่เปิดอยู่ช่วยกันเติมหลอดของกลุ่ม ไม่มีการเทียบรายคน</p>
+  <div style="display:flex;justify-content:space-between;font-weight:800"><span>ส่งแล้ว ${got} / ${need} ชิ้นงาน</span><span>${pct}%</span></div><div class="lpbar big"><i data-w="${pct}"></i></div>
+  <div class="lpmile">${TEAM.map(([t,id])=>`<span>${pct>=t?"✅":"🔒"} ${t}% <b>${esc2(nm(id))}</b> ทั้งกลุ่ม</span>`).join("")}</div>`;w.dataset.ready="1";anim(w);
+ const newly=TEAM.filter(([t,id])=>pct>=t&&!have.has(id)).map(([,id])=>id);
+ if(newly.length){try{const db2=await claude.use("db");await db2.doc("subs/"+uid).update({fun:{team:[...have,...newly]}})}catch(e){console.warn(e)}
+  const o=overlay(`<p class="sub">พลังทีมเต็มหลอด!</p><h2>กลุ่มเรียนของคุณปลดล็อก</h2><p class="lploot">${newly.map(nm).map(esc2).join(" · ")}</p><p class="sub">ทุกคนใน Section ได้รับพร้อมกัน</p><div class="lpbtns"><button type="button" class="gold" id="lpgo">ไปแต่งตัว</button><button type="button" class="g" id="lpx">ปิด</button></div>`);
+  burst(o.querySelector("canvas"),150);tone(SND.win);o.querySelector("#lpx").onclick=()=>o.remove();o.querySelector("#lpgo").onclick=()=>{o.remove();view={name:"home"};homeTab="dress";lastKey="";render()}}}
+
+/* ---------- กล่องที่ยังไม่เปิด: การ์ดบนหน้าแรกและหน้าผล ---------- */
+function mountBoxCard(){const app=document.getElementById("app");if(!app)return;let w=document.getElementById("lpboxc");
+ let list=[];if(view.name==="home"&&homeTab==="top")list=boxesLeft();else if(view.name==="mission"&&me.missions?.[view.mid]&&boxesLeft().includes(view.mid))list=[view.mid];
+ if(!list.length){if(w)w.remove();return}
+ const anchor=app.querySelector("section.sheet");if(!anchor)return;if(!w){w=document.createElement("section");w.id="lpboxc";w.className="lpw"}
+ w.innerHTML=`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="font-size:44px;line-height:1">🎁</div><div style="flex:1 1 180px;min-width:0"><h3>มีกล่องอุปกรณ์ลับรอเปิด ${list.length} กล่อง</h3><p class="m" style="margin:0">รางวัลส่งตรงเวลา (${list.join(", ")}) ได้ของแต่งตัวละครพร้อมเกร็ดความรู้</p></div><div class="lpbtns" style="margin:0"><button type="button" class="gold" id="lpopen">เปิดกล่อง</button></div></div>`;
+ if(w.parentNode!==anchor.parentNode||w.nextSibling!==anchor)anchor.parentNode.insertBefore(w,anchor);
+ w.querySelector("#lpopen").onclick=()=>openBox(list[0])}
+
+/* ---------- ต่อเข้ากับแอป ---------- */
+function after(){if(!ok())return;try{patchUnlock();sndBtn();badges();checkLevel();mountBoxCard();mountPoll();mountTeam()}catch(e){console.warn("fun",e)}}
+function init(){if(typeof render!=="function"){return setTimeout(init,200)}
+ const orig=render;window.render=function(){const r=orig.apply(this,arguments);setTimeout(after,0);return r};
+ setInterval(()=>{if(document.visibilityState==="visible")after()},4000);}
+window.LP_fun={submitted:(mid,sub)=>{try{submitted(mid,sub)}catch(e){console.warn(e)}},openBox,tone};
+init();
+})();
+</script></body></html>
