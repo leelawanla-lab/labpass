@@ -1204,7 +1204,7 @@ function correctB(mid,sid){
  return{}
 }
 function grade(mid,sid,sub){
- if(!sub)return null;
+ if(!sub)return null;sid=sub.sid||sid;
  const m=MISSIONS.find(x=>x.id===mid);
  if(m.type==="test"){let n=0;T.forEach((it,i)=>{const a=sub.T?.[i];if(a&&+a.a===it.k&&+a.r===it.rk)n++});return{test:n,max:10}}
  const items=A[mid];let a=0;items.forEach((it,i)=>{if(+sub.A?.[i]?.a===it.k)a+=0.5});
@@ -1479,7 +1479,7 @@ const BT={
  T:["U","U","An","U","E","An","Ap","E","An","U"]};
 const bTag=(mid,part,i)=>part==="T"?BT.T[i]:part==="B"?BT[mid]?.B?.[i]:BT[mid]?.[part]?.[i];
 const bPill=lv=>lv?`<span class="bpill" style="--c:${BLN[lv][3]}" title="Bloom: ${BLN[lv][2]}">${BLN[lv][1]}</span>`:"";
-function bloomCalc(mid,sid,sub,tg){const o={};const add=(lv,e)=>{if(!lv)return;o[lv]=o[lv]||[0,0];o[lv][0]+=e;o[lv][1]+=1};
+function bloomCalc(mid,sid,sub,tg){sid=(sub&&sub.sid)||sid;const o={};const add=(lv,e)=>{if(!lv)return;o[lv]=o[lv]||[0,0];o[lv][0]+=e;o[lv][1]+=1};
  if(!sub)return o;const m=MISSIONS.find(x=>x.id===mid);
  if(m.type==="test"){T.forEach((it,i)=>{const a=sub.T?.[i];add(BT.T[i],a&&+a.a===it.k&&+a.r===it.rk?1:0)});return o}
  A[mid].forEach((it,i)=>add(BT[mid].A[i],+sub.A?.[i]?.a===it.k?1:0));
@@ -1502,7 +1502,7 @@ function bloomPyramid(b,cmp){/* b: {R:[e,n],...}; cmp optional second set (pre-t
  return s+`</svg>`}
 function bloomMiss(lv){const out=[];["M1","M2","M3","M4","M5"].forEach(id=>{const sub=me.missions?.[id];if(!sub)return;const tg=myGrades?.[id];
  A[id].forEach((it,i)=>{if(BT[id].A[i]===lv&&+sub.A?.[i]?.a!==it.k)out.push([id,"A"+(i+1),it.q])});
- const g=gradeB(id,me.sid,sub.B||{});B[id].forEach(f=>{if(BT[id].B[f.k]===lv&&g[f.k]&&!g[f.k].ok)out.push([id,"B",f.l])});
+ const g=gradeB(id,sub.sid||me.sid,sub.B||{});B[id].forEach(f=>{if(BT[id].B[f.k]===lv&&g[f.k]&&!g[f.k].ok)out.push([id,"B",f.l])});
  C[id].forEach((c,i)=>{if(BT[id].C[i]!==lv||sub.C?.[i]==null)return;const l=tg?.c!=null?+tg.c:sub.Cauto?.items?.[i]?.level;if(l!=null&&l<2)out.push([id,"C"+(i+1),c.q])})});return out}
 function bloomHeat(){const ids=["M1","M2","M3","M4","M5"].filter(id=>me.missions?.[id]);if(!ids.length)return"";
  const cell=(L,x)=>{const p=bPct(x);if(p==null)return`<td class="hm0">—</td>`;return`<td style="background:color-mix(in srgb,${L[3]} ${Math.round(12+88*p/100)}%,#fff);color:${p>=55?"#fff":"#1c2433"}">${p}</td>`};
@@ -2710,7 +2710,7 @@ function renderTeacher(){
      subs.forEach(({sub})=>{const a=sub.A[i];if(+a.a===it.k)ok++;else{oc[a.a]=(oc[a.a]||0)+1;if(a.c==="1")mis++}});const top=Object.entries(oc).sort((a,b)=>b[1]-a[1])[0];
      return[i+1+". "+it.q,pct(ok,n),pct(mis,n),top?`${TH[+top[0]]} ${esc(it.o[+top[0]])} (${top[1]} คน)`:"—"]}))
     +`<h3>ส่วน B</h3>`+tbl(["ข้อ","ถูก","ข้อผิดพลาดที่พบบ่อย"],B[mid].map(f=>{const n=subs.length||1;let ok=0;const hc={};
-     subs.forEach(({s,sub})=>{const r=gradeB(mid,s.sid,sub.B||{})[f.k];if(r.ok)ok++;else hc[r.hint]=(hc[r.hint]||0)+1});const top=Object.entries(hc).sort((a,b)=>b[1]-a[1])[0];
+     subs.forEach(({s,sub})=>{const r=gradeB(mid,sub.sid||s.sid,sub.B||{})[f.k];if(r.ok)ok++;else hc[r.hint]=(hc[r.hint]||0)+1});const top=Object.entries(hc).sort((a,b)=>b[1]-a[1])[0];
      return[f.l,pct(ok,n),top?`${top[0]} (${top[1]} คน)`:"—"]}))
     +`<h3>ส่วน D · จุดที่นักศึกษายังงง</h3><ul>${subs.filter(x=>x.sub.D?.muddy).map(x=>`<li>${esc(x.sub.D.muddy)}</li>`).join("")||"<li class='muted'>ยังไม่มี</li>"}</ul>`;
   }
@@ -3227,7 +3227,8 @@ const BASE_FACTS=[
  "กระดาษทดพิมพ์สูตรได้ ใช้ × คูณ ÷ หาร ^ ยกกำลัง ในกระดาษทดมีแป้นเครื่องหมาย + − × ÷ ^ ( ) π ให้กด ใช้ได้ทั้ง iPad และมือถือ ถ้ายังพิมพ์ไม่ได้ให้รีเฟรชหน้า แล้วกด 🛠 แจ้งปัญหา",
  "ถ้าตัวหนังสือจาง สีแปลก หรือหน้าจอแสดงไม่ครบ ให้รีเฟรชหน้าก่อน (ปัญหาโหมดมืดแก้แล้ว 15 ต.ค.) ถ้ายังไม่หายให้กด 🛠 แจ้งปัญหา ที่แถบด้านบน ระบบแนบรุ่นเครื่องให้อาจารย์อัตโนมัติ",
  "แชทนี้คุยได้ 20 ข้อความต่อหัวข้อ ใต้คำตอบมีปุ่ม 👍/👎 บอกอาจารย์ได้ว่าคำตอบช่วยไหม ปุ่ม 🤖 AI บนแถบด้านบนใช้เปิดหรือปิดผู้ช่วย AI และถอนความยินยอมได้",
- "ปัญหาเข้าระบบ ลืมรหัสผ่าน หรือรหัสนักศึกษาผิด ให้แจ้งอาจารย์ทางกลุ่มรายวิชา อาจารย์แก้ให้",
+ "ปัญหาเข้าระบบหรือลืมรหัสผ่าน ให้แจ้งอาจารย์ทางกลุ่มรายวิชา",
+ "รหัสนักศึกษา ชื่อ หรือกลุ่มเรียนผิด: กด 👤 ข้อมูลของฉัน บนแถบด้านบน ถ้ายังไม่เคยส่งภารกิจแก้เองได้ทันที ถ้าส่งแล้วกด ส่งคำขอให้อาจารย์แก้ งานที่ส่งแล้วไม่หายและคะแนนเดิมไม่เปลี่ยน",
  "เรื่องคะแนนรวมของรายวิชา การสอบ และการตัดเกรด อาจารย์ตัวจริงเป็นผู้ตอบ ผู้ช่วยไม่ทราบข้อมูลนี้",
  "เกียรติบัตรที่ชื่อเอียงหรือไม่อยู่กลาง แก้แล้ว 15 ต.ค. ให้รีเฟรชหน้าแล้วกดดาวน์โหลดเกียรติบัตรใหม่"];
 let chatCfg={facts:[],tips:[]};
@@ -3385,5 +3386,153 @@ function addTopLinks(){const pv=[...document.querySelectorAll("a")].find(a=>/ค
 function after(){try{watchCfg();addKeys();clearIfSubmitted();restore();addTopLinks()}catch(e){console.warn("plus",e)}}
 const _r=window.render;if(typeof _r==="function")window.render=function(){const r=_r.apply(this,arguments);setTimeout(after,30);return r};
 setTimeout(after,600);
+})();
+</script><script>/* LabPass idfix (15 ต.ค. 2569): กันรหัสนักศึกษาผิด 3 ชั้น
+   1) ยืนยันรหัสก่อนลงทะเบียน + เทียบรายชื่อรายวิชา (config/roster เก็บแบบแฮช)
+   2) "ข้อมูลของฉัน" นักศึกษาแก้เองได้ก่อนส่งภารกิจแรก หลังจากนั้นส่งคำขอให้อาจารย์ (subs.fixReq)
+   3) หน้าอาจารย์ "👤 รายชื่อ" แก้รหัส/ชื่อ/กลุ่ม ตรวจรหัสซ้ำ เก็บประวัติ (subs.sidLog)
+   ภารกิจที่ส่งแล้วตรวจด้วยรหัสตอนส่ง (แก้ใน build.py) */
+(function(){
+"use strict";
+const X=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dg=s=>String(s||"").replace(/\D/g,"");
+const SECRE=/^[A-Z]{0,3}\d{1,4}$/;
+const STY=`.idov{position:fixed;inset:0;z-index:90;background:rgba(15,22,40,.5);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
+.idov>div{background:#fff;color:#1d2640;width:min(560px,100%);border-radius:18px;padding:18px 18px 16px;box-shadow:0 20px 60px rgba(0,0,0,.3);margin-top:4vh}
+.idov.wide>div{width:min(860px,100%)}
+.idov h3{margin:0 0 6px;font-size:19px}.idov p{margin:6px 0;line-height:1.6;font-size:15px}
+.idov .big{font:800 34px/1.2 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:4px;text-align:center;background:#f3f6ff;border:2px solid #3d64e8;border-radius:14px;padding:12px 6px;margin:10px 0;color:#13224a}
+.idov .kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:15px;margin:6px 0 10px}.idov .kv b{color:#4a5675;font-weight:600}
+.idov .warn{background:#fff4d6;border:1px solid #ecd58b;color:#6b4a00;border-radius:12px;padding:8px 12px;font-size:14px;margin:8px 0}
+.idov .bad{background:#fdeceb;border:1px solid #f0b8b0;color:#8f2a1c;border-radius:12px;padding:8px 12px;font-size:14px;margin:8px 0}
+.idov .okb{background:#e6f6ec;border:1px solid #a9dcb9;color:#1f6b3a;border-radius:12px;padding:8px 12px;font-size:14px;margin:8px 0}
+.idov .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.idov .btn{border:0;background:#1a2f6e;color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-size:15px;cursor:pointer;min-height:44px}
+.idov .btn.g{background:#eef1f7;color:#1d2640}.idov .btn.s{padding:6px 12px;min-height:34px;font-size:14px}
+.idov label{display:block;font-size:13px;font-weight:700;color:#4a5675;margin:8px 0 3px}
+.idov input,.idov textarea,.idov select{width:100%;box-sizing:border-box;border:1px solid #cfd6e4;border-radius:10px;padding:9px 11px;font:inherit;font-size:16px;color:#1d2640;background:#fff}
+.idov .x{float:right;border:0;background:none;font-size:22px;cursor:pointer;color:#555;line-height:1}
+.idov .muted{color:#6b7591;font-size:13px}
+.idov table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}.idov th,.idov td{border-bottom:1px solid #e8ecf3;padding:7px 6px;text-align:left;vertical-align:top}
+.idov th{font-size:12px;color:#6b7591;font-weight:700}.idov .tg{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;margin:2px 2px 0 0}
+.idov .tg.r{background:#fdeceb;color:#a33a26}.idov .tg.y{background:#fff4d6;color:#7a5600}.idov .tg.b{background:#e7f0ff;color:#24408f}
+.idov .tw{overflow-x:auto}.idov .edit td{background:#f8faff}
+.idbanner{margin:0 0 10px;background:#fff4d6;border:1px solid #ecd58b;color:#5c4300;border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.5}
+#idme{font-weight:700;color:#1a2f6e;text-decoration:none}`;
+try{const s=document.createElement("style");s.textContent=STY;document.head.appendChild(s)}catch(e){}
+const T=t=>{try{toast(t)}catch(e){}};
+const close=()=>document.querySelector(".idov")?.remove();
+function modal(html,wide){close();const o=document.createElement("div");o.className="idov"+(wide?" wide":"");o.innerHTML=`<div role="dialog">${html}</div>`;document.body.appendChild(o);o.addEventListener("click",e=>{if(e.target===o||e.target.closest(".x"))close()});return o}
+
+/* ---------- รายชื่อรายวิชา (แฮช) ---------- */
+let roster=null;
+async function h16(sid){try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("labpass-ceg23167:"+sid));return[...new Uint8Array(b)].slice(0,8).map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return null}}
+function watchRoster(){if(watchRoster.on||typeof db==="undefined"||!db)return;watchRoster.on=1;try{db.doc("config/roster").onSnapshot(s=>{roster=s.exists?s.data():null;if(document.getElementById("idlist"))teacherPanel()},()=>{})}catch(e){watchRoster.on=0}}
+async function inRoster(sid){if(!roster||!Array.isArray(roster.h)||!roster.h.length)return null;const h=await h16(sid);return h?roster.h.includes(h):null}
+
+/* ---------- ชั้น 1: ยืนยันก่อนลงทะเบียน ---------- */
+document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest("#rgo");if(!b)return;if(b.dataset.idok==="1"){b.dataset.idok="";return}
+ const sid=dg(document.getElementById("rsid")?.value),name=(document.getElementById("rname")?.value||"").trim().replace(/^(นาย|นางสาว|นาง|น\.ส\.)\s*/,""),sec=String(document.getElementById("rsec")?.value||"").trim().toUpperCase();
+ const ts=document.getElementById("rtitle");const title=ts?(ts.value==="other"?(document.getElementById("rtitle2")?.value||"").trim():ts.value==="none"?"":ts.value):"";
+ if(sid.length!==8||!name||!/\s/.test(name)||!SECRE.test(sec)||(ts&&!ts.value))return; /* ให้ระบบเดิมแจ้งข้อผิดพลาด */
+ e.preventDefault();e.stopImmediatePropagation();
+ const ok=await inRoster(sid);
+ const o=modal(`<h3>ตรวจรหัสนักศึกษาอีกครั้ง</h3><p>ระบบใช้รหัสนี้สร้างโจทย์ตัวเลขเฉพาะของเรา ถ้ารหัสผิด ตัวเลขทุกภารกิจจะผิดไปด้วย</p>
+  <div class="big" aria-label="รหัสนักศึกษา">${X(sid.slice(0,2)+" "+sid.slice(2,5)+" "+sid.slice(5))}</div>
+  <div class="kv"><b>ชื่อ</b><span>${X((title?title+" ":"")+name)}</span><b>กลุ่มเรียน</b><span>${X(sec)}</span></div>
+  ${ok===false?`<div class="bad">⚠️ <b>รหัสนี้ไม่อยู่ในรายชื่อนักศึกษาของรายวิชา</b> ลองเทียบกับบัตรนักศึกษาอีกครั้ง ถ้าแน่ใจว่าถูก กดยืนยันได้ อาจารย์จะตรวจให้</div>`:ok===true?`<div class="okb">✓ รหัสนี้อยู่ในรายชื่อนักศึกษาของรายวิชา</div>`:""}
+  <p class="muted">หลังส่งภารกิจแรกแล้ว ต้องให้อาจารย์เป็นผู้แก้รหัส</p>
+  <div class="row"><button class="btn" id="idgo">${ok===false?"แน่ใจ รหัสถูกต้อง":"ถูกต้อง เริ่มใช้งาน"}</button><button class="btn g" id="idback">กลับไปแก้</button></div>`);
+ o.querySelector("#idback").onclick=()=>{close();const i=document.getElementById("rsid");if(i){i.focus();i.select&&i.select()}};
+ o.querySelector("#idgo").onclick=()=>{close();b.dataset.idok="1";b.click()}},true);
+
+/* ---------- ชั้น 2: ข้อมูลของฉัน (นักศึกษา) ---------- */
+const nSub=m=>Object.keys((m&&m.missions)||{}).filter(k=>m.missions[k]).length;
+function myInfo(){if(typeof me==="undefined"||!me)return;const n=nSub(me);const req=me.fixReq&&me.fixReq.status==="wait"?me.fixReq:null;
+ const form=(p)=>`<label for="idsid">รหัสนักศึกษา (8 หลัก)</label><input id="idsid" inputmode="numeric" maxlength="8" value="${X(p.sid||"")}" autocomplete="off">
+  <label for="idname">ชื่อ นามสกุล (ไม่ต้องใส่คำนำหน้า)</label><input id="idname" value="${X(p.name||"")}">
+  <label for="idsec">กลุ่มเรียน</label><input id="idsec" value="${X(p.section||"")}" autocapitalize="characters">`;
+ if(!n){const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>👤 ข้อมูลของฉัน</h3><p>ยังไม่ได้ส่งภารกิจ จึงแก้ข้อมูลเองได้ <b>แก้ได้จนถึงก่อนส่งภารกิจแรก</b></p>${form(me)}
+  <div class="warn">ถ้าเปลี่ยนรหัส โจทย์ตัวเลขทุกภารกิจจะเปลี่ยนตามรหัสใหม่ คำตอบที่ทำค้างไว้ต้องคิดใหม่</div><p id="iderr" class="bad" hidden></p>
+  <div class="row"><button class="btn" id="idsave">บันทึก</button><button class="btn g x2">ยกเลิก</button></div>`);
+  o.querySelector(".x2").onclick=close;const si=o.querySelector("#idsid");si.oninput=()=>si.value=dg(si.value).slice(0,8);
+  o.querySelector("#idsave").onclick=async()=>{const sid=dg(si.value),name=o.querySelector("#idname").value.trim().replace(/^(นาย|นางสาว|นาง|น\.ส\.)\s*/,""),sec=o.querySelector("#idsec").value.trim().toUpperCase();const er=o.querySelector("#iderr");
+   const bad=sid.length!==8?"รหัสนักศึกษาต้องเป็นตัวเลข 8 หลักพอดี":!/\s/.test(name)?"กรอกชื่อและนามสกุล เว้นวรรคระหว่างชื่อกับนามสกุล":!SECRE.test(sec)?"กรอกกลุ่มเรียนให้ถูกรูปแบบ เช่น 001 หรือ A301":"";if(bad){er.textContent=bad;er.hidden=false;return}
+   if(nSub(me)){er.textContent="มีภารกิจที่ส่งแล้ว ต้องให้อาจารย์แก้";er.hidden=false;return}
+   if(sid===me.sid&&name===me.name&&sec===me.section){close();return}
+   if(sid!==me.sid){const ok=await inRoster(sid);if(ok===false&&!confirmRoster(o))return}
+   const log=(me.sidLog||[]).concat([{from:{sid:me.sid,name:me.name,section:me.section},to:{sid,name,section:sec},at:new Date().toISOString(),by:"นักศึกษา"}]).slice(-20);
+   try{await db.doc("subs/"+uid).update({sid,name,section:sec,sidLog:log});close();T("บันทึกข้อมูลแล้ว")}catch(x){er.textContent="บันทึกไม่สำเร็จ ลองอีกครั้ง";er.hidden=false}};return}
+ const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>👤 ข้อมูลของฉัน</h3>
+  <div class="kv"><b>รหัส</b><span>${X(me.sid)}</span><b>ชื่อ</b><span>${X(me.name)}</span><b>กลุ่มเรียน</b><span>${X(me.section)}</span></div>
+  <p>ส่งภารกิจแล้ว ${n} ภารกิจ ข้อมูลจึงล็อกไว้ ถ้าผิด ส่งคำขอให้อาจารย์แก้ได้ที่นี่ งานที่ส่งแล้วไม่หาย และยังตรวจตามโจทย์ที่ทำไป</p>
+  ${req?`<div class="okb">ส่งคำขอแล้ว รออาจารย์ตรวจ: รหัส ${X(req.to.sid)} · ${X(req.to.name)} · กลุ่ม ${X(req.to.section)}</div>`:""}
+  ${form(req?req.to:me)}<label for="idwhy">เหตุผล (ไม่บังคับ)</label><input id="idwhy" placeholder="เช่น พิมพ์รหัสสลับหลัก"><p id="iderr" class="bad" hidden></p>
+  <div class="row"><button class="btn" id="idreq">${req?"ส่งคำขอใหม่แทนอันเดิม":"ส่งคำขอให้อาจารย์แก้"}</button><button class="btn g x2">ปิด</button></div>`);
+ o.querySelector(".x2").onclick=close;const si=o.querySelector("#idsid");si.oninput=()=>si.value=dg(si.value).slice(0,8);
+ o.querySelector("#idreq").onclick=async()=>{const sid=dg(si.value),name=o.querySelector("#idname").value.trim().replace(/^(นาย|นางสาว|นาง|น\.ส\.)\s*/,""),sec=o.querySelector("#idsec").value.trim().toUpperCase();const er=o.querySelector("#iderr");
+  const bad=sid.length!==8?"รหัสนักศึกษาต้องเป็นตัวเลข 8 หลักพอดี":!/\s/.test(name)?"กรอกชื่อและนามสกุล เว้นวรรคระหว่างชื่อกับนามสกุล":!SECRE.test(sec)?"กรอกกลุ่มเรียนให้ถูกรูปแบบ":(sid===me.sid&&name===me.name&&sec===me.section)?"ข้อมูลยังเหมือนเดิม แก้ช่องที่ผิดก่อนส่งคำขอ":"";if(bad){er.textContent=bad;er.hidden=false;return}
+  try{await db.doc("subs/"+uid).update({fixReq:{to:{sid,name,section:sec},why:o.querySelector("#idwhy").value.trim().slice(0,200),at:new Date().toISOString(),status:"wait"}});close();T("ส่งคำขอแล้ว อาจารย์จะตรวจและแก้ให้")}catch(x){er.textContent="ส่งไม่สำเร็จ ลองอีกครั้ง";er.hidden=false}}}
+function confirmRoster(o){const w=o.querySelector("#idrw");if(w&&w.dataset.ok==="1")return true;const p=document.createElement("div");p.id="idrw";p.className="bad";p.dataset.ok="1";p.innerHTML="⚠️ รหัสนี้ไม่อยู่ในรายชื่อนักศึกษาของรายวิชา ตรวจอีกครั้ง ถ้าแน่ใจ กดบันทึกซ้ำ";o.querySelector(".row").before(p);return false}
+window.LP_myInfo=myInfo;
+
+/* ---------- ป้ายในภารกิจที่ทำด้วยรหัสเดิม ---------- */
+function banner(){try{if(typeof view==="undefined"||view.name!=="mission"||!me||isTeacher)return;const sub=me.missions&&me.missions[view.mid];const app=document.getElementById("app");if(!app||app.querySelector(".idbanner"))return;
+ if(sub&&sub.sid&&sub.sid!==me.sid){const d=document.createElement("div");d.className="idbanner";d.textContent=`ภารกิจนี้ส่งตอนใช้รหัส ${sub.sid} คะแนนจึงตรวจตามโจทย์ของรหัสเดิม (ตัวเลขโจทย์ที่เห็นในหน้านี้เป็นของรหัสปัจจุบัน)`;const s=app.querySelector("section");(s||app).prepend(d)}}catch(e){}}
+
+/* ---------- ชั้น 3: หน้าอาจารย์ ---------- */
+let q="",editing=null,hashes={};
+async function hashAll(S){await Promise.all(S.filter(s=>s.sid&&!(s.sid in hashes)).map(async s=>{hashes[s.sid]=await h16(s.sid)}))}
+async function teacherPanel(){const S=(typeof allSubs!=="undefined"&&allSubs)||[];await hashAll(S);
+ const cnt={};S.forEach(s=>{if(s.sid)cnt[s.sid]=(cnt[s.sid]||0)+1});const hasR=roster&&Array.isArray(roster.h)&&roster.h.length;
+ const flags=s=>{const f=[];if(s.sid&&cnt[s.sid]>1)f.push(["r","รหัสซ้ำ"]);if(s.sid&&!/^\d{8}$/.test(s.sid))f.push(["r","ไม่ครบ 8 หลัก"]);if(hasR&&s.sid&&!roster.h.includes(hashes[s.sid]))f.push(["y","ไม่อยู่ในรายชื่อ"]);if(s.fixReq&&s.fixReq.status==="wait")f.push(["b","ขอแก้ข้อมูล"]);return f};
+ const reqs=S.filter(s=>s.fixReq&&s.fixReq.status==="wait");const flagged=S.filter(s=>flags(s).some(f=>f[0]!=="b"));
+ const ql=q.trim().toLowerCase();const list=S.filter(s=>s.sid||s.name).filter(s=>!ql||[s.sid,s.name,s.section].join(" ").toLowerCase().includes(ql)).sort((a,b)=>flags(b).length-flags(a).length||String(a.section).localeCompare(String(b.section))||String(a.sid).localeCompare(String(b.sid)));
+ const row=s=>{const f=flags(s),n=nSub(s);if(editing===s.uid)return`<tr class="edit"><td colspan="5"><b>แก้ข้อมูล: ${X(s.name)}</b><div class="tw" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px"><div><label>รหัส</label><input id="ed_sid" inputmode="numeric" maxlength="8" value="${X(s.sid)}"></div><div><label>ชื่อ นามสกุล</label><input id="ed_name" value="${X(s.name)}"></div><div><label>กลุ่มเรียน</label><input id="ed_sec" value="${X(s.section)}"></div></div>
+   ${n?`<div class="warn">ส่งแล้ว ${n} ภารกิจ งานที่ส่งแล้วยังตรวจด้วยรหัสตอนส่ง คะแนนเดิมไม่เปลี่ยน ภารกิจที่ทำต่อจากนี้จะใช้โจทย์ของรหัสใหม่</div>`:""}<p id="ed_err" class="bad" hidden></p>
+   <div class="row"><button class="btn s" data-save="${X(s.uid)}">บันทึก</button><button class="btn g s" data-cancel="1">ยกเลิก</button></div>
+   ${(s.sidLog||[]).length?`<p class="muted">ประวัติการแก้: ${(s.sidLog||[]).map(l=>`${X(l.from.sid)} → ${X(l.to.sid)} (${X(l.by)} ${new Date(l.at).toLocaleDateString("th-TH")})`).join(" · ")}</p>`:""}</td></tr>`;
+  return`<tr><td>${X(s.sid||"—")}</td><td>${X(s.name||"—")}</td><td>${X(s.section||"—")}</td><td>${n}</td><td>${f.map(x=>`<span class="tg ${x[0]}">${x[1]}</span>`).join("")}<div><button class="btn g s" data-edit="${X(s.uid)}">✏️ แก้</button></div></td></tr>`};
+ const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>👤 รายชื่อและข้อมูลนักศึกษา</h3><p class="muted">แก้รหัส ชื่อ กลุ่มเรียน · ระบบตรวจรหัสซ้ำและเก็บประวัติการแก้ · งานที่ส่งแล้วตรวจด้วยรหัสตอนส่งเสมอ</p>
+  ${reqs.length?`<div class="warn"><b>คำขอแก้ข้อมูล ${reqs.length} รายการ</b>${reqs.map(s=>`<div style="margin-top:8px;border-top:1px dashed #ecd58b;padding-top:6px">${X(s.sid)} · ${X(s.name)} · กลุ่ม ${X(s.section)}<br>ขอเปลี่ยนเป็น <b>${X(s.fixReq.to.sid)} · ${X(s.fixReq.to.name)} · กลุ่ม ${X(s.fixReq.to.section)}</b>${s.fixReq.why?`<br><span class="muted">เหตุผล: ${X(s.fixReq.why)}</span>`:""}${cnt[s.fixReq.to.sid]&&s.fixReq.to.sid!==s.sid?`<br><span class="tg r">รหัสใหม่ซ้ำกับนักศึกษาอีกคน</span>`:""}<div class="row" style="margin-top:6px"><button class="btn s" data-ok="${X(s.uid)}">อนุมัติและแก้</button><button class="btn g s" data-no="${X(s.uid)}">ไม่อนุมัติ</button></div></div>`).join("")}</div>`:""}
+  <div class="row" style="margin-top:4px"><input id="idq" placeholder="ค้นหารหัส ชื่อ หรือกลุ่มเรียน" value="${X(q)}" style="flex:1;min-width:180px"><button class="btn g s" id="idros">📋 รายชื่อรายวิชา${hasR?` (${roster.n} คน)`:""}</button></div>
+  <p class="muted">ทั้งหมด ${S.filter(s=>s.sid).length} คน${flagged.length?` · <b style="color:#a33a26">ควรตรวจ ${flagged.length} คน</b>`:""}${hasR?"":" · ยังไม่ได้ใส่รายชื่อรายวิชา (ใส่แล้วระบบจะเตือนรหัสที่ไม่อยู่ในรายชื่อ)"}</p>
+  <div class="tw" id="idlist"><table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>กลุ่ม</th><th>ส่งแล้ว</th><th>สถานะ</th></tr></thead><tbody>${list.slice(0,400).map(row).join("")}</tbody></table></div>`,true);
+ const qi=o.querySelector("#idq");qi.oninput=()=>{q=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{teacherPanel().then(()=>{const n=document.getElementById("idq");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}})},250)};
+ o.querySelector("#idros").onclick=rosterPanel;
+ const es=o.querySelector("#ed_sid");if(es)es.oninput=()=>es.value=dg(es.value).slice(0,8);
+ o.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.edit){editing=t.dataset.edit;return teacherPanel()}
+  if(t.dataset.cancel){editing=null;return teacherPanel()}
+  const by=uidv=>S.find(x=>x.uid===uidv);
+  if(t.dataset.save){const s=by(t.dataset.save);const er=o.querySelector("#ed_err");const to={sid:dg(o.querySelector("#ed_sid").value),name:o.querySelector("#ed_name").value.trim(),section:o.querySelector("#ed_sec").value.trim().toUpperCase()};
+   const bad=to.sid.length!==8?"รหัสต้องเป็นตัวเลข 8 หลัก":!to.name?"กรอกชื่อ":!SECRE.test(to.section)?"กลุ่มเรียนไม่ถูกรูปแบบ":S.some(x=>x.uid!==s.uid&&x.sid===to.sid)?"รหัสนี้ซ้ำกับนักศึกษาอีกคน ตรวจก่อนบันทึก":"";if(bad){er.textContent=bad;er.hidden=false;return}
+   await apply(s,to,"อาจารย์");editing=null;return teacherPanel()}
+  if(t.dataset.ok){const s=by(t.dataset.ok);const to=s.fixReq.to;if(S.some(x=>x.uid!==s.uid&&x.sid===to.sid)){T("รหัสใหม่ซ้ำกับนักศึกษาอีกคน แก้ด้วยปุ่ม ✏️ แทน");return}await apply(s,to,"อาจารย์ (ตามคำขอ)",{fixReq:{...s.fixReq,status:"done",doneAt:new Date().toISOString()}});return teacherPanel()}
+  if(t.dataset.no){const s=by(t.dataset.no);try{const fr={...s.fixReq,status:"no",doneAt:new Date().toISOString()};await db.doc("subs/"+s.uid).update({fixReq:fr});s.fixReq=fr;T("บันทึกแล้ว")}catch(x){T("บันทึกไม่สำเร็จ")}return teacherPanel()}})}
+async function apply(s,to,by,extra){if(to.sid===s.sid&&to.name===s.name&&to.section===s.section&&!extra){T("ข้อมูลเหมือนเดิม");return}
+ const log=(s.sidLog||[]).concat([{from:{sid:s.sid,name:s.name,section:s.section},to,at:new Date().toISOString(),by}]).slice(-20);
+ const up=Object.assign({sid:to.sid,name:to.name,section:to.section,sidLog:log},extra||{});
+ try{await db.doc("subs/"+s.uid).update(up);Object.assign(s,up);T("แก้ข้อมูลแล้ว");try{publishClassStats()}catch(e){}}catch(x){T("บันทึกไม่สำเร็จ")}}
+function rosterPanel(){const hasR=roster&&Array.isArray(roster.h)&&roster.h.length;
+ const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>📋 รายชื่อนักศึกษาของรายวิชา</h3>
+  <p>วางรหัสนักศึกษาจากระบบทะเบียน (คัดลอกทั้งคอลัมน์จาก Excel ได้เลย) ระบบดึงเฉพาะตัวเลข 8 หลัก ใช้เตือนตอนลงทะเบียนและในรายชื่อถ้ารหัสไม่อยู่ในรายวิชา</p>
+  <p class="muted">ระบบเก็บเป็นรหัสแปลง (แฮช) ไม่เก็บชื่อ ไม่เก็บรหัสตรง ๆ · นักศึกษาที่รหัสไม่อยู่ในรายชื่อยังลงทะเบียนได้หลังยืนยัน (เผื่อลงทะเบียนเรียนช้า)</p>
+  ${hasR?`<div class="okb">ตอนนี้มีรายชื่อ ${roster.n} คน (อัปเดต ${new Date(roster.at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"})})</div>`:""}
+  <textarea id="idrt" rows="8" placeholder="68000001&#10;68000002&#10;…"></textarea><p class="muted" id="idrc">พบ 0 รหัส</p>
+  <div class="row"><button class="btn" id="idrs">${hasR?"แทนที่รายชื่อเดิม":"บันทึกรายชื่อ"}</button>${hasR?`<button class="btn g" id="idradd">เพิ่มต่อจากเดิม</button><button class="btn g" id="idrdel">ลบรายชื่อ</button>`:""}<button class="btn g" id="idrback">กลับ</button></div>`);
+ const ta=o.querySelector("#idrt");const ids=()=>[...new Set((ta.value.match(/\d{8}/g)||[]))];ta.oninput=()=>o.querySelector("#idrc").textContent=`พบ ${ids().length} รหัส`;
+ const save=async add=>{const L=ids();if(!L.length){T("ยังไม่พบรหัส 8 หลัก");return}const H=await Promise.all(L.map(h16));const all=add&&hasR?[...new Set(roster.h.concat(H))]:[...new Set(H)];
+  try{await db.doc("config/roster").set({h:all,n:all.length,at:new Date().toISOString()});roster={h:all,n:all.length,at:new Date().toISOString()};T("บันทึกรายชื่อ "+all.length+" คนแล้ว");teacherPanel()}catch(x){T("บันทึกไม่สำเร็จ")}};
+ o.querySelector("#idrs").onclick=()=>save(false);o.querySelector("#idradd")&&(o.querySelector("#idradd").onclick=()=>save(true));
+ o.querySelector("#idrdel")&&(o.querySelector("#idrdel").onclick=async()=>{try{await db.doc("config/roster").set({h:[],n:0,at:new Date().toISOString()});roster=null;T("ลบรายชื่อแล้ว");teacherPanel()}catch(x){T("ลบไม่สำเร็จ")}});
+ o.querySelector("#idrback").onclick=teacherPanel}
+window.LP_roster=teacherPanel;
+
+/* ---------- ปุ่มบนแถบด้านบน ---------- */
+function buttons(){try{watchRoster();const pv=[...document.querySelectorAll("a")].find(a=>/ความเป็นส่วนตัว/.test(a.textContent));if(!pv||document.getElementById("idme"))return;
+ if(typeof isTeacher!=="undefined"&&isTeacher){const b=document.createElement("a");b.href="#";b.id="idme";b.textContent="👤 รายชื่อ";b.onclick=e=>{e.preventDefault();editing=null;teacherPanel()};pv.parentNode.insertBefore(b,pv);return}
+ if(typeof me==="undefined"||!me)return;const b=document.createElement("a");b.href="#";b.id="idme";b.textContent="👤 ข้อมูลของฉัน";b.onclick=e=>{e.preventDefault();myInfo()};pv.parentNode.insertBefore(b,pv)}catch(e){}}
+setInterval(()=>{buttons();banner()},700);
 })();
 </script></body></html>
