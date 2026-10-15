@@ -2499,7 +2499,7 @@ async function makeCert(){
  const TH='"Noto Sans Thai",sans-serif',EN='"Manrope","Noto Sans Thai",sans-serif',SER='Cinzel,"Times New Roman",serif',SCR='Charm,"Noto Sans Thai",cursive';
  try{await Promise.all(["800 60px 'Noto Sans Thai'","400 30px 'Noto Sans Thai'","800 40px Manrope","700 60px Cinzel","700 60px Charm","400 40px Charm"].map(f=>document.fonts.load(f)))}catch(e){}
  const NAVY="#0f1f45",BLUE="#1f4fa8",GOLD="#b8902f",MUTE="#4f5868";
- const T=(t,X,Y,font,col,al="center",ls=0)=>{x.font=font;x.fillStyle=col;x.textAlign=al;try{x.letterSpacing=ls+"px"}catch(e){}x.fillText(t,X,Y);try{x.letterSpacing="0px"}catch(e){}};
+ const T=(t,X,Y,font,col,al="center",ls=0)=>{x.save();x.font=font;x.fillStyle=col;if(ls){x.textAlign=al;try{x.letterSpacing=ls+"px"}catch(e){}x.fillText(t,X,Y)}else{x.textAlign="left";const w=x.measureText(t).width;x.fillText(t,al==="center"?X-w/2:al==="right"?X-w:X,Y)}x.restore()};
  const goldG=(x0,y0,x1,y1)=>{const g=x.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,"#8a6a1f");g.addColorStop(.35,"#f3d98b");g.addColorStop(.6,"#c9a043");g.addColorStop(1,"#f6e3a6");return g};
  const poly=(pts,fill)=>{x.beginPath();pts.forEach(([a,b],k)=>k?x.lineTo(a,b):x.moveTo(a,b));x.closePath();x.fillStyle=fill;x.fill()};
  /* paper */
@@ -2529,7 +2529,7 @@ async function makeCert(){
  T("CERTIFICATE",W/2,640,`700 130px ${SER}`,NAVY,"center",6);
  T("OF COMPLETION",W/2,700,`700 38px ${SER}`,GOLD,"center",10);
  T("ขอรับรองว่า",W/2,770,`500 32px ${TH}`,MUTE,"center",2);
- let nf=120;x.font=`700 ${nf}px ${SCR}`;while(x.measureText(me.name).width>1150&&nf>60){nf-=4;x.font=`700 ${nf}px ${SCR}`}
+ let nf=120;x.font=`700 ${nf}px ${SCR}`;while(x.measureText(fullName(me)).width>1150&&nf>60){nf-=4;x.font=`700 ${nf}px ${SCR}`}
  T(fullName(me),W/2,890,`700 ${nf}px ${SCR}`,NAVY);
  x.fillStyle=goldG(W/2-520,0,W/2+520,0);x.fillRect(W/2-520,918,1040,2.5);
  T(`รหัสนักศึกษา ${me.sid} · Section ${me.section||"—"}`,W/2,966,`500 28px ${TH}`,MUTE);
