@@ -3,6 +3,8 @@ try{document.documentElement.setAttribute("data-theme","light");const m=document
 /* LabPass web edition: replaces the claude.ai Artifact runtime with Supabase */
 (function(){
 const CFG=window.LABPASS_CONFIG||{};
+/* จำว่าเปิดมาจากลิงก์ตั้งรหัสผ่านใหม่ในอีเมล (ก่อนระบบล้างที่อยู่) */
+try{window.LP_RECOVERY=/type=recovery/.test(location.hash)}catch(e){}
 const sb=window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true}});
 window.LP_SB=sb;
 let session=null,isTeacherFlag=false;
@@ -3541,5 +3543,95 @@ function buttons(){try{watchRoster();const pv=[...document.querySelectorAll("a")
  if(typeof isTeacher!=="undefined"&&isTeacher){const b=document.createElement("a");b.href="#";b.id="idme";b.textContent="👤 รายชื่อ";b.onclick=e=>{e.preventDefault();editing=null;teacherPanel()};pv.parentNode.insertBefore(b,pv);return}
  if(typeof me==="undefined"||!me)return;const b=document.createElement("a");b.href="#";b.id="idme";b.textContent="👤 ข้อมูลของฉัน";b.onclick=e=>{e.preventDefault();myInfo()};pv.parentNode.insertBefore(b,pv)}catch(e){}}
 setInterval(()=>{buttons();banner()},700);
+})();
+</script><script>/* LabPass pw (16 ต.ค. 2569): ลืมรหัสผ่าน → ส่งลิงก์ทางอีเมลมหาวิทยาลัย → ตั้งรหัสผ่านใหม่ในแอป
+   + เปลี่ยนรหัสผ่านใน 👤 ข้อมูลของฉัน · ไม่มีใครต้องรู้รหัสผ่านของนักศึกษา */
+(function(){
+"use strict";
+const sb=window.LP_SB;if(!sb)return;
+const DEMO=!sb.auth.resetPasswordForEmail; /* ฐานข้อมูลจำลองในตัวอย่าง */
+const X=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const STY=`.pwov{position:fixed;inset:0;z-index:120;background:rgba(11,20,51,.55);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
+.pwov>div{background:#fff;color:#13224A;width:min(460px,100%);border-radius:20px;padding:20px;margin-top:6vh;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.pwov h3{margin:0 0 6px;font-size:20px}.pwov p{margin:6px 0;line-height:1.6;font-size:15px}
+.pwov label{display:block;font-size:14px;font-weight:700;margin:12px 0 4px}
+.pwov .in{display:flex;gap:6px}.pwov input{flex:1;min-width:0;border:1.5px solid #CFD6E4;border-radius:12px;padding:11px 12px;font:inherit;font-size:16px;color:#13224A;background:#fff}
+.pwov .eye{border:1px solid #DDE3EE;background:#F5F7FB;color:#13224A;border-radius:12px;padding:0 10px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.pwov .go{width:100%;margin-top:14px;border:0;border-radius:14px;padding:13px;font:inherit;font-size:16px;font-weight:700;background:#1A2F6E;color:#fff;cursor:pointer;min-height:48px}
+.pwov .go:disabled{opacity:.55}.pwov .gh{width:100%;margin-top:8px;border:0;background:none;color:#3D64E8;font:inherit;font-size:15px;cursor:pointer;padding:8px}
+.pwov .msg{min-height:1.2em;font-size:14px}.pwov .bad{color:#B42318}.pwov .ok{color:#1F6B3A}
+.pwov .box{background:#F3F6FF;border:1px solid #D5DEF7;border-radius:14px;padding:10px 12px;font-size:14px;line-height:1.6;margin-top:10px}
+.pwov .demo{background:#FFF4D6;border:1px dashed #E0B84A;border-radius:14px;padding:10px 12px;font-size:14px;margin-top:12px}
+.pwov .x{float:right;border:0;background:none;font-size:22px;cursor:pointer;color:#555;line-height:1}
+#pwforgot{display:inline-block;margin:-4px 0 6px;font-size:14px;font-weight:700;color:#3D64E8;text-decoration:none}`;
+try{const s=document.createElement("style");s.textContent=STY;document.head.appendChild(s)}catch(e){}
+const close=()=>document.querySelector(".pwov")?.remove();
+function modal(h){close();const o=document.createElement("div");o.className="pwov";o.innerHTML=`<div role="dialog" aria-modal="true">${h}</div>`;document.body.appendChild(o);
+ o.querySelectorAll("[data-eye]").forEach(b=>b.onclick=()=>{const i=o.querySelector("#"+b.dataset.eye);const s=i.type==="password";i.type=s?"text":"password";b.textContent=s?"🙈 ซ่อน":"👁 แสดง"});
+ o.querySelector(".x")?.addEventListener("click",close);return o}
+const okDomain=e=>/@(spumail\.net|spu\.ac\.th)$/i.test(e);
+
+/* ---------- 1) ลืมรหัสผ่าน: ขอลิงก์ทางอีเมล ---------- */
+let lastSend=0;
+function forgot(){const pre=(document.getElementById("lpe")?.value||"").trim();
+ const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>🔑 ลืมรหัสผ่าน</h3>
+  <p>ใส่อีเมลมหาวิทยาลัยที่ใช้สมัคร LabPass ระบบจะส่ง<b>ลิงก์ตั้งรหัสผ่านใหม่</b>ไปที่อีเมลนั้น</p>
+  <label for="pwe">อีเมลมหาวิทยาลัย</label><div class="in"><input id="pwe" type="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="ชื่อ.นามสกุล3ตัว@spumail.net" value="${X(pre)}"></div>
+  <p class="msg" style="color:#5B6785">ระบบส่งอีเมลได้<b>ชั่วโมงละ 2 ฉบับ (รวมทั้งห้อง)</b> กดส่งครั้งเดียวพอ แล้วรออีเมลสักครู่</p><p class="msg" id="pwm"></p><button class="go" id="pwgo">ส่งลิงก์ไปที่อีเมล</button>${DEMO?`<button class="gh" id="pwfull">ตัวอย่าง: ดูข้อความเมื่อเกินชั่วโมงละ 2 คน</button>`:""}<button class="gh" id="pwback">กลับไปหน้าเข้าสู่ระบบ</button>`);
+ o.querySelector("#pwback").onclick=close;const pf=o.querySelector("#pwfull");if(pf)pf.onclick=()=>full(o.querySelector("#pwe").value.trim());
+ o.querySelector("#pwgo").onclick=async()=>{const e=o.querySelector("#pwe").value.trim().toLowerCase();const m=o.querySelector("#pwm");m.className="msg bad";
+  if(!/^\S+@\S+\.\S+$/.test(e)){m.textContent="พิมพ์อีเมลให้ครบ";return}
+  if(!okDomain(e)){m.textContent="ใช้ได้เฉพาะอีเมล @spumail.net หรือ @spu.ac.th";return}
+  const wait=60-Math.round((Date.now()-lastSend)/1000);if(wait>0){m.textContent=`เพิ่งส่งไป รออีก ${wait} วินาทีแล้วค่อยกดใหม่`;return}
+  const b=o.querySelector("#pwgo");b.disabled=true;m.className="msg";m.textContent="กำลังส่ง…";
+  let err=null;if(!DEMO){try{const r=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});err=r.error}catch(x){err=x}}else await new Promise(z=>setTimeout(z,700));
+  b.disabled=false;
+  if(err){m.className="msg bad";if(/rate|limit|429|seconds/i.test(String(err.message||err.status||""))){full(e);return}m.textContent="ส่งไม่สำเร็จ ลองใหม่อีกครั้ง ถ้ายังไม่ได้แจ้งอาจารย์";return}
+  lastSend=Date.now();sent(e)}}
+function sent(e){const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>📧 ส่งลิงก์แล้ว</h3>
+  <p>ถ้า <b>${X(e)}</b> เป็นอีเมลที่สมัคร LabPass ไว้ จะได้รับอีเมลภายในไม่กี่นาที</p>
+  <div class="box">1. เปิดอีเมลมหาวิทยาลัย หาอีเมลชื่อ <b>Reset Your Password</b> <b>ถ้าไม่เห็น ดูในกล่อง Junk หรือ Spam</b><br>2. กดลิงก์ในอีเมล ระบบจะเปิด LabPass แล้วให้ตั้งรหัสผ่านใหม่<br>3. ลิงก์ใช้ได้ครั้งเดียว และหมดอายุใน 1 ชั่วโมง</div>
+  <p class="msg">ไม่ได้รับอีเมลภายใน 15 นาที แจ้งอาจารย์ได้เลย</p>
+  ${DEMO?`<div class="demo"><b>ตัวอย่างเท่านั้น:</b> ระบบจำลองไม่ได้ส่งอีเมลจริง กดปุ่มนี้แทนการกดลิงก์ในอีเมล<button class="go" id="pwdemo" style="background:#B4442C">📧 จำลอง: กดลิงก์ในอีเมล</button></div>`:""}
+  <button class="gh" id="pwok">เข้าใจแล้ว</button>`);
+ o.querySelector("#pwok").onclick=close;const d=o.querySelector("#pwdemo");if(d)d.onclick=async()=>{close();try{await sb.auth.signInWithPassword({email:e,password:"x"});sessionStorage.setItem("pwdemo","1");location.reload()}catch(x){setNew(true)}}}
+
+function full(e){const t=new Date(Date.now()+60*60000).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+ const o=modal(`<button class="x" aria-label="ปิด">✕</button><h3>⏳ ตอนนี้ส่งอีเมลเต็มแล้ว</h3>
+  <p>ระบบที่ LabPass ใช้ส่งอีเมลเป็น<b>แบบฟรี ส่งได้ชั่วโมงละ 2 ฉบับเท่านั้น (รวมทั้งห้อง)</b> ชั่วโมงนี้มีเพื่อนขอลิงก์ไปครบแล้ว จึงยังส่งให้เราไม่ได้</p>
+  <div class="box">🕐 <b>ลองกดใหม่อีกครั้งประมาณ ${t} น.</b> เป็นต้นไป<br>📌 ระหว่างนี้งานที่ทำไว้ไม่หาย อยู่ในระบบครบ<br>🙋 ถ้ารีบ เช่น ใกล้กำหนดส่ง แจ้งอาจารย์ทางกลุ่มรายวิชา พร้อมบอกอีเมลที่ใช้สมัคร</div>
+  <button class="go" id="pwfok">เข้าใจแล้ว</button>`);o.querySelector("#pwfok").onclick=close}
+
+/* ---------- 2) ตั้งรหัสผ่านใหม่ (หลังกดลิงก์ในอีเมล หรือจากข้อมูลของฉัน) ---------- */
+function setNew(fromLink){const o=modal(`${fromLink?"":`<button class="x" aria-label="ปิด">✕</button>`}<h3>${fromLink?"🔐 ตั้งรหัสผ่านใหม่":"🔐 เปลี่ยนรหัสผ่าน"}</h3>
+  <p>${fromLink?"ยืนยันตัวตนจากอีเมลแล้ว ตั้งรหัสผ่านใหม่สำหรับเข้า LabPass ครั้งต่อไป":"ตั้งรหัสผ่านใหม่สำหรับเข้า LabPass ครั้งต่อไป"} <b>อย่างน้อย 6 ตัว</b> ไม่ใช่รหัสอีเมลมหาวิทยาลัย</p>
+  <label for="pwn1">รหัสผ่านใหม่</label><div class="in"><input id="pwn1" type="password" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัว"><button type="button" class="eye" data-eye="pwn1">👁 แสดง</button></div>
+  <label for="pwn2">พิมพ์รหัสผ่านใหม่อีกครั้ง</label><div class="in"><input id="pwn2" type="password" autocomplete="new-password" placeholder="พิมพ์ให้ตรงกับช่องบน"><button type="button" class="eye" data-eye="pwn2">👁 แสดง</button></div>
+  <p class="msg" id="pwm2"></p><button class="go" id="pwsave">บันทึกรหัสผ่านใหม่</button>${fromLink?`<button class="gh" id="pwlater">ไว้ทีหลัง ใช้งานต่อเลย</button>`:""}`);
+ const m=o.querySelector("#pwm2");const a=o.querySelector("#pwn1"),b=o.querySelector("#pwn2");
+ b.addEventListener("input",()=>{if(!b.value){m.textContent="";return}m.className="msg "+(a.value===b.value?"ok":"bad");m.textContent=a.value===b.value?"✓ รหัสผ่านตรงกัน":"✗ ยังไม่ตรงกับช่องบน"});
+ const later=o.querySelector("#pwlater");if(later)later.onclick=close;
+ o.querySelector("#pwsave").onclick=async()=>{m.className="msg bad";if(a.value.length<6){m.textContent="รหัสผ่านอย่างน้อย 6 ตัว";return}if(a.value!==b.value){m.textContent="สองช่องยังไม่ตรงกัน กด 👁 แสดง เพื่อตรวจ";return}
+  const btn=o.querySelector("#pwsave");btn.disabled=true;m.className="msg";m.textContent="กำลังบันทึก…";
+  let err=null;if(!DEMO){try{const r=await sb.auth.updateUser({password:a.value});err=r.error}catch(x){err=x}}else await new Promise(z=>setTimeout(z,600));
+  btn.disabled=false;if(err){m.className="msg bad";m.textContent=/same|different/i.test(String(err.message||""))?"รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม":/expired|session|jwt/i.test(String(err.message||""))?"ลิงก์หมดอายุแล้ว กด ลืมรหัสผ่าน? เพื่อขอลิงก์ใหม่":"บันทึกไม่สำเร็จ ลองอีกครั้ง";return}
+  close();try{toast("บันทึกรหัสผ่านใหม่แล้ว ครั้งหน้าเข้าด้วยรหัสนี้")}catch(x){}
+  try{localStorage.setItem("lp_seen","1")}catch(x){}}}
+window.LP_setPassword=()=>setNew(false);
+
+/* ---------- ติดลิงก์ในหน้าเข้าสู่ระบบ ---------- */
+function decorate(){const lpin=document.getElementById("lpin");
+ const foot=document.querySelector(".lp-foot span");if(foot&&/แจ้งอาจารย์เพื่อรีเซ็ต/.test(foot.textContent))foot.innerHTML=`ลืมรหัสผ่าน? <a href="#" data-pwf style="color:inherit;font-weight:700">ขอลิงก์ตั้งใหม่ทางอีเมล</a>`;
+ document.querySelectorAll("[data-pwf]").forEach(a=>a.onclick=e=>{e.preventDefault();forgot()});
+ if(lpin&&!document.getElementById("pwforgot")){const pw=document.getElementById("lpp");const f=pw&&pw.closest(".lp-f");if(f){const a=document.createElement("a");a.href="#";a.id="pwforgot";a.textContent="ลืมรหัสผ่าน?";a.onclick=e=>{e.preventDefault();forgot()};f.appendChild(a)}}
+ const m=document.getElementById("lpm");if(m&&/ถ้าลืมรหัสผ่าน แจ้งอาจารย์/.test(m.textContent))m.innerHTML=`อีเมลหรือรหัสผ่านไม่ถูกต้อง · <a href="#" data-pwf style="color:#3D64E8;font-weight:700">ลืมรหัสผ่าน?</a>`,m.querySelector("[data-pwf]").onclick=e=>{e.preventDefault();forgot()};
+ /* ปุ่มเปลี่ยนรหัสผ่านในข้อมูลของฉัน */
+ const ov=document.querySelector(".idov h3");if(ov&&/ข้อมูลของฉัน/.test(ov.textContent)&&!document.getElementById("pwchg")){const row=ov.parentNode.querySelector(".row");if(row){const b=document.createElement("button");b.className="btn g";b.id="pwchg";b.type="button";b.textContent="🔐 เปลี่ยนรหัสผ่าน";b.onclick=()=>{document.querySelector(".idov")?.remove();setNew(false)};row.appendChild(b)}}}
+new MutationObserver(()=>{try{decorate()}catch(e){}}).observe(document.documentElement,{childList:true,subtree:true});
+
+/* ---------- เปิดจากลิงก์ในอีเมล ---------- */
+if(window.LP_RECOVERY)setTimeout(()=>setNew(true),900);
+try{if(DEMO&&sessionStorage.getItem("pwdemo")){sessionStorage.removeItem("pwdemo");setTimeout(()=>setNew(true),1500)}}catch(e){}
+try{sb.auth.onAuthStateChange&&sb.auth.onAuthStateChange(ev=>{if(ev==="PASSWORD_RECOVERY"&&!document.getElementById("pwsave"))setTimeout(()=>setNew(true),900)})}catch(e){}
 })();
 </script></body></html>
