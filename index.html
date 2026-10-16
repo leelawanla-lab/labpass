@@ -3636,4 +3636,30 @@ if(window.LP_RECOVERY){setTimeout(()=>setNew(true),900);pwlog("opened")}
 try{if(DEMO&&sessionStorage.getItem("pwdemo")){sessionStorage.removeItem("pwdemo");setTimeout(()=>setNew(true),1500)}}catch(e){}
 try{sb.auth.onAuthStateChange&&sb.auth.onAuthStateChange(ev=>{if(ev==="PASSWORD_RECOVERY"&&!document.getElementById("pwsave")){setTimeout(()=>setNew(true),900);if(!window.LP_RECOVERY)pwlog("opened")}})}catch(e){}
 })();
+</script><script>/* LabPass tgui (16 ต.ค. 2569): ปุ่ม 📲 Telegram ในหน้าอาจารย์ เชื่อมบอทส่วนตัวของอาจารย์ */
+(function(){
+"use strict";
+const CFG=window.LABPASS_CONFIG||{};const EP=(CFG.url||"").replace(/\/$/,"")+"/functions/v1/tg";
+const X=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function call(q){const sb=window.LP_SB;let tok="";try{const{data}=await sb.auth.getSession();tok=data?.session?.access_token||""}catch(e){}
+ const r=await fetch(EP+"?"+q,{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:CFG.anonKey||""}});let j={};try{j=await r.json()}catch(e){}return{status:r.status,...j}}
+function modal(h){document.querySelector(".tgov")?.remove();const o=document.createElement("div");o.className="idov tgov";o.innerHTML=`<div role="dialog" aria-modal="true"><button class="x" aria-label="ปิด">✕</button>${h}</div>`;document.body.appendChild(o);o.addEventListener("click",e=>{if(e.target===o||e.target.closest(".x"))o.remove()});return o}
+async function open(){const o=modal(`<h3>📲 เชื่อม LabPass กับ Telegram ของอาจารย์</h3><p class="muted">กำลังตรวจสถานะ…</p>`);
+ let st;try{st=await call("status=1")}catch(e){st={status:0}}
+ const body=o.querySelector("div");
+ if(st.status===503||st.error==="no_bot_token"||st.error==="bad_token"){body.innerHTML=`<button class="x" aria-label="ปิด">✕</button><h3>📲 เชื่อม Telegram</h3>
+  <div class="warn">ยังไม่ได้ใส่รหัสบอท หรือรหัสบอทไม่ถูกต้อง</div>
+  <p>1. ใน Telegram คุยกับ <b>@BotFather</b> พิมพ์ <code>/newbot</code> ตั้งชื่อบอท แล้วคัดลอก<b>รหัสบอท (token)</b> ที่ได้<br>2. ใน Supabase › Edge Functions › Secrets เพิ่มชื่อ <code>TG_BOT_TOKEN</code> แล้ววางรหัสบอท<br>3. กลับมากดปุ่ม 📲 Telegram นี้อีกครั้ง</p>`;return}
+ if(st.status!==200){body.innerHTML=`<button class="x" aria-label="ปิด">✕</button><h3>📲 เชื่อม Telegram</h3><div class="bad">ยังติดต่อระบบบอทไม่ได้ (${X(st.error||st.status)}) ลองใหม่อีกครั้ง</div>`;return}
+ body.innerHTML=`<button class="x" aria-label="ปิด">✕</button><h3>📲 Telegram ของอาจารย์</h3>
+  <p>บอท: <b>@${X(st.bot)}</b> · สถานะ: ${st.linked?`<b style="color:#1f6b3a">เชื่อมแล้ว</b> (${new Date(st.at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"})})`:`<b style="color:#a33a26">ยังไม่เชื่อม</b>`}</p>
+  <div class="okb">🔒 บอทแสดงเฉพาะ<b>รหัสนักศึกษา กลุ่มเรียน และคะแนน</b> ไม่แสดงชื่อ · ตอบเฉพาะ Telegram ของอาจารย์ที่เชื่อมไว้ · ผู้ช่วย AI ใช้ตีความคำถามของอาจารย์เท่านั้น ไม่ได้รับข้อมูลนักศึกษา<br>แนะนำเปิด <b>รหัสผ่าน 2 ชั้น</b> ใน Telegram (Settings › Privacy and Security › Two-Step Verification)</div>
+  <div class="row"><button class="btn" id="tgpair">${st.linked?"เชื่อมใหม่ (เปลี่ยนเครื่องหรือบัญชี)":"เชื่อม Telegram ของฉัน"}</button>${st.linked?`<button class="btn g" id="tgun">ยกเลิกการเชื่อม</button>`:""}</div><p id="tgmsg" class="muted"></p>`;
+ body.querySelector("#tgpair").onclick=async()=>{const m=body.querySelector("#tgmsg");m.textContent="กำลังสร้างลิงก์…";const r=await call("pair=1");if(!r.link){m.textContent="สร้างลิงก์ไม่สำเร็จ ลองใหม่";return}
+  m.innerHTML=`ลิงก์ใช้ได้ 15 นาที · <a href="${X(r.link)}" target="_blank" rel="noopener"><b>เปิด Telegram แล้วกด Start</b></a><br>ถ้าเปิดบนคอม ให้สแกนหรือเปิดลิงก์นี้ในโทรศัพท์: <code style="word-break:break-all">${X(r.link)}</code>`;try{window.open(r.link,"_blank","noopener")}catch(e){}};
+ const un=body.querySelector("#tgun");if(un)un.onclick=async()=>{await call("unlink=1");open()}}
+window.LP_tg=open;
+setInterval(()=>{try{if(typeof isTeacher==="undefined"||!isTeacher||document.getElementById("tgbtn"))return;const pv=[...document.querySelectorAll("a")].find(a=>/ความเป็นส่วนตัว/.test(a.textContent));if(!pv)return;
+ const b=document.createElement("a");b.href="#";b.id="tgbtn";b.textContent="📲 Telegram";b.style.cssText="font-weight:700;color:#229ED9;text-decoration:none";b.onclick=e=>{e.preventDefault();open()};pv.parentNode.insertBefore(b,pv)}catch(e){}},800);
+})();
 </script></body></html>
