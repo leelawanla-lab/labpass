@@ -3610,14 +3610,16 @@ function setNew(fromLink){const o=modal(`${fromLink?"":`<button class="x" aria-l
   <p class="msg" id="pwm2"></p><button class="go" id="pwsave">บันทึกรหัสผ่านใหม่</button>${fromLink?`<button class="gh" id="pwlater">ไว้ทีหลัง ใช้งานต่อเลย</button>`:""}`);
  const m=o.querySelector("#pwm2");const a=o.querySelector("#pwn1"),b=o.querySelector("#pwn2");
  b.addEventListener("input",()=>{if(!b.value){m.textContent="";return}m.className="msg "+(a.value===b.value?"ok":"bad");m.textContent=a.value===b.value?"✓ รหัสผ่านตรงกัน":"✗ ยังไม่ตรงกับช่องบน"});
- const later=o.querySelector("#pwlater");if(later)later.onclick=close;
+ const later=o.querySelector("#pwlater");if(later)later.onclick=()=>{pwlog("later");close()};
  o.querySelector("#pwsave").onclick=async()=>{m.className="msg bad";if(a.value.length<6){m.textContent="รหัสผ่านอย่างน้อย 6 ตัว";return}if(a.value!==b.value){m.textContent="สองช่องยังไม่ตรงกัน กด 👁 แสดง เพื่อตรวจ";return}
   const btn=o.querySelector("#pwsave");btn.disabled=true;m.className="msg";m.textContent="กำลังบันทึก…";
   let err=null;if(!DEMO){try{const r=await sb.auth.updateUser({password:a.value});err=r.error}catch(x){err=x}}else await new Promise(z=>setTimeout(z,600));
-  btn.disabled=false;if(err){m.className="msg bad";m.textContent=/same|different/i.test(String(err.message||""))?"รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม":/expired|session|jwt/i.test(String(err.message||""))?"ลิงก์หมดอายุแล้ว กด ลืมรหัสผ่าน? เพื่อขอลิงก์ใหม่":"บันทึกไม่สำเร็จ ลองอีกครั้ง";return}
+  btn.disabled=false;if(err)pwlog(fromLink?"fail":"chg_fail",err.message||err.status);else pwlog(fromLink?"set":"changed");if(err){m.className="msg bad";m.textContent=/same|different/i.test(String(err.message||""))?"รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม":/expired|session|jwt/i.test(String(err.message||""))?"ลิงก์หมดอายุแล้ว กด ลืมรหัสผ่าน? เพื่อขอลิงก์ใหม่":"บันทึกไม่สำเร็จ ลองอีกครั้ง";return}
   close();try{toast("บันทึกรหัสผ่านใหม่แล้ว ครั้งหน้าเข้าด้วยรหัสนี้")}catch(x){}
   try{localStorage.setItem("lp_seen","1")}catch(x){}}}
 window.LP_setPassword=()=>setNew(false);
+/* บันทึกผลการใช้ลืมรหัสผ่าน ให้อาจารย์ตรวจได้ว่าจบเรื่องจริงไหม (subs.pwlog) */
+function pwlog(step,why){let n=0;const go=()=>{try{if(typeof me!=="undefined"&&me&&typeof uid!=="undefined"&&uid&&typeof db!=="undefined"&&db&&!isTeacher){const L=(me.pwlog||[]).concat([{at:new Date().toISOString(),step,why:why?String(why).slice(0,60):undefined}]).slice(-20);me.pwlog=L;db.doc("subs/"+uid).update({pwlog:L}).catch(()=>{});return}}catch(e){}if(++n<40)setTimeout(go,500)};go()}
 
 /* ---------- ติดลิงก์ในหน้าเข้าสู่ระบบ ---------- */
 function decorate(){const lpin=document.getElementById("lpin");
@@ -3630,8 +3632,8 @@ function decorate(){const lpin=document.getElementById("lpin");
 new MutationObserver(()=>{try{decorate()}catch(e){}}).observe(document.documentElement,{childList:true,subtree:true});
 
 /* ---------- เปิดจากลิงก์ในอีเมล ---------- */
-if(window.LP_RECOVERY)setTimeout(()=>setNew(true),900);
+if(window.LP_RECOVERY){setTimeout(()=>setNew(true),900);pwlog("opened")}
 try{if(DEMO&&sessionStorage.getItem("pwdemo")){sessionStorage.removeItem("pwdemo");setTimeout(()=>setNew(true),1500)}}catch(e){}
-try{sb.auth.onAuthStateChange&&sb.auth.onAuthStateChange(ev=>{if(ev==="PASSWORD_RECOVERY"&&!document.getElementById("pwsave"))setTimeout(()=>setNew(true),900)})}catch(e){}
+try{sb.auth.onAuthStateChange&&sb.auth.onAuthStateChange(ev=>{if(ev==="PASSWORD_RECOVERY"&&!document.getElementById("pwsave")){setTimeout(()=>setNew(true),900);if(!window.LP_RECOVERY)pwlog("opened")}})}catch(e){}
 })();
 </script></body></html>
