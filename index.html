@@ -115,10 +115,14 @@ if(CFG.aiEndpoint){
   if(opts.images&&opts.images.length)throw{code:"images_unavailable"};
   if(!(await aiGate()))throw{code:"not_granted"};
   const kind=Array.isArray(input)?"chat":/ตรวจคำตอบส่วน/.test(String(input))?"grade":"insight";
-  const tok=session?.access_token;
-  const r=await fetch(CFG.aiEndpoint,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+tok,apikey:CFG.anonKey},body:JSON.stringify({input,kind}),signal:opts.signal});
+  /* ใช้บัตรผ่านล่าสุดทุกครั้ง (บัตรเดิมหมดอายุใน 1 ชม.) ถ้าหมดอายุให้ต่ออายุแล้วลองใหม่ ถ้าเซิร์ฟเวอร์สะดุดลองใหม่อีก 1 ครั้ง */
+  const fresh=async force=>{try{if(force&&sb.auth.refreshSession){const{data}=await sb.auth.refreshSession();if(data&&data.session)session=data.session}else{const{data}=await sb.auth.getSession();if(data&&data.session)session=data.session}}catch(e){}return session?.access_token};
+  const call=async tok=>fetch(CFG.aiEndpoint,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+tok,apikey:CFG.anonKey},body:JSON.stringify({input,kind}),signal:opts.signal});
+  let r=null;for(let t=0;t<3;t++){try{r=await call(await fresh(t>0&&r&&r.status===401))}catch(e){if(e&&e.name==="AbortError")throw{code:"cancelled"};r=null}
+   if(r&&(r.ok||r.status===403||r.status===429||r.status===400||r.status===413))break;if(t<2)await new Promise(z=>setTimeout(z,t?2500:1200))}
+  if(!r){window.LP_aiErr&&LP_aiErr("network");throw{code:"unavailable"}}
   if(r.status===403){aiOK=false;aiBar();throw{code:"not_granted"}}
-  if(r.status===429)throw{code:"rate_limited"};if(!r.ok)throw{code:"unavailable"};
+  if(r.status===429)throw{code:"rate_limited"};if(!r.ok){window.LP_aiErr&&LP_aiErr("http"+r.status);throw{code:"unavailable"}}
   const j=await r.json();if(opts.onText)opts.onText({text:j.text,delta:j.text});return{text:j.text,truncated:false}};
  sampleFn.json=async(input,opts)=>{const r=await sampleFn(input,opts);const m=r.text.match(/[\[{][\s\S]*[\]}]/);if(!m)throw{code:"invalid_json"};return JSON.parse(m[0])};
  sampleFn.limits=async()=>({maxPromptBytes:60000,images:null});
@@ -2325,7 +2329,7 @@ async function sendChat(){const inp=$("#chin");let t=inp.value.trim();const img=
   while(msgs.length&&msgs[0].role!=="user")msgs.shift();msgs.unshift({role:"user",content:chatSystem(ctx)+"\n\nต่อไปนี้คือบทสนทนา ตอบในบทบาทอาจารย์ต่อจากข้อความล่าสุดของนักศึกษา"},{role:"assistant",content:"รับทราบค่ะ"});
   if(img)msgs.at(-1).content="[นักศึกษาแนบรูปมาพร้อมข้อความนี้]\n"+msgs.at(-1).content;
   chatAbort=new AbortController();const opt={modelTier:"quick",cache:false,signal:chatAbort.signal,onText:({text})=>{const e=document.getElementById("chlive");if(e&&text&&text!=="Thinking..."){e.classList.remove("typing");e.textContent=window.LP_plus?LP_plus.live(text):text;$("#chlog").scrollTop=1e9}}};if(img)opt.images=[img];
-  const r=await sample(msgs,opt);reply=(r?.text||"").trim();if(window.LP_plus)reply=LP_plus.guard(reply,t,ctx)}catch(e){reply="";L.push({r:"t",t:e?.code==="rate_limited"?"วันนี้ผู้ช่วย AI ตอบครบโควตาแล้ว หรือมีคนใช้พร้อมกันเยอะ ลองใหม่ภายหลัง หรือถามอาจารย์ในคาบได้เลยนะคะ":e?.code==="not_granted"?"ยังไม่ได้เปิดผู้ช่วย AI ค่ะ กดปุ่ม 🤖 AI ที่แถบด้านบนเพื่อเปิด หรือถามอาจารย์ในคาบได้เลยนะคะ":e?.code==="images_unavailable"?"ตอนนี้อาจารย์ยังเปิดดูรูปไม่ได้ค่ะ ลองพิมพ์เล่าแทนได้ไหมคะ":e?.code==="cancelled"?"":"ขอโทษค่ะ สัญญาณไม่ดี ลองส่งใหม่อีกครั้งนะคะ",at:new Date().toISOString(),err:1});chatSent[ctx]--}
+  const r=await sample(msgs,opt);reply=(r?.text||"").trim();if(window.LP_plus)reply=LP_plus.guard(reply,t,ctx)}catch(e){reply="";L.push({r:"t",t:e?.code==="rate_limited"?"วันนี้ผู้ช่วย AI ตอบครบโควตาแล้ว หรือมีคนใช้พร้อมกันเยอะ ลองใหม่ภายหลัง หรือถามอาจารย์ในคาบได้เลยนะคะ":e?.code==="not_granted"?"ยังไม่ได้เปิดผู้ช่วย AI ค่ะ กดปุ่ม 🤖 AI ที่แถบด้านบนเพื่อเปิด หรือถามอาจารย์ในคาบได้เลยนะคะ":e?.code==="images_unavailable"?"ตอนนี้อาจารย์ยังเปิดดูรูปไม่ได้ค่ะ ลองพิมพ์เล่าแทนได้ไหมคะ":e?.code==="cancelled"?"":"ขอโทษค่ะ ตอนนี้ผู้ช่วยตอบไม่ได้ ข้อความของเราอยู่ในช่องพิมพ์แล้ว กดส่งอีกครั้งได้เลย ถ้ายังไม่ได้ลองรีเฟรชหน้า หรือถามอาจารย์ในคาบนะคะ",at:new Date().toISOString(),err:1});chatSent[ctx]--;if(e?.code!=="cancelled"){try{if(!$("#chin").value)$("#chin").value=t}catch(_){}}}
  if(reply){L.push({r:"t",t:reply.slice(0,1500),at:new Date().toISOString()});speak(reply)}chatBusy=false;if(chatCtx===ctx)drawChat();
  if(reply&&!isTeacher&&me&&db&&uid){try{const keep=L.filter(m=>!m.err).slice(-60).map(({img,...m})=>m);const others=Object.entries(me.chat||{}).filter(([k])=>k!==ctx).reduce((a,[,v])=>a+jsonBytes(v),0);while(keep.length>6&&others+jsonBytes(keep)>CHAT_BUDGET)keep.shift();const rest=jsonBytes(Object.assign({},me,{chat:null}));while(keep.length>4&&rest+others+jsonBytes(keep)>DOC_SAFE)keep.shift();await db.doc("subs/"+uid).update({chat:{[ctx]:keep}})}catch(e){console.warn(e)}}}
 const CHAT_BUDGET=110000,DOC_SAFE=220000;function jsonBytes(v){try{return new TextEncoder().encode(JSON.stringify(v??null)).length}catch(e){return 0}}
@@ -3387,6 +3391,9 @@ function after(){try{watchCfg();addKeys();clearIfSubmitted();restore();addTopLin
 const _r=window.render;if(typeof _r==="function")window.render=function(){const r=_r.apply(this,arguments);setTimeout(after,30);return r};
 setTimeout(after,600);
 })();
+
+/* บันทึกเมื่อผู้ช่วยตอบไม่ได้ (16 ต.ค.) ให้อาจารย์เห็นว่าเกิดบ่อยแค่ไหน */
+window.LP_aiErr=function(why){try{if(typeof me==="undefined"||!me||isTeacher||!db||!uid)return;const L=(me.chaterr||[]).concat([{at:new Date().toISOString(),why:String(why).slice(0,20),ctx:typeof chatCtx!=="undefined"?chatCtx:"",vis:document.visibilityState}]).slice(-30);me.chaterr=L;db.doc("subs/"+uid).update({chaterr:L}).catch(()=>{})}catch(e){}};
 </script><script>/* LabPass idfix (15 ต.ค. 2569): กันรหัสนักศึกษาผิด 3 ชั้น
    1) ยืนยันรหัสก่อนลงทะเบียน + เทียบรายชื่อรายวิชา (config/roster เก็บแบบแฮช)
    2) "ข้อมูลของฉัน" นักศึกษาแก้เองได้ก่อนส่งภารกิจแรก หลังจากนั้นส่งคำขอให้อาจารย์ (subs.fixReq)
